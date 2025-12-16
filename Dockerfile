@@ -58,6 +58,7 @@ RUN curl -Lo lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/d
 
 # Create a non-root user 'dev'
 RUN useradd -m -s /bin/bash dev && \
+    echo "dev:password" | chpasswd && \
     echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
     groupadd docker && \
     usermod -aG docker dev

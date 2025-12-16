@@ -9,6 +9,11 @@ if [ -f /etc/fake_osrelease ]; then
     sudo mount --bind /etc/fake_osrelease /proc/sys/kernel/osrelease
 fi
 
+# Fix Docker socket permissions
+if [ -e /var/run/docker.sock ]; then
+    sudo chmod 666 /var/run/docker.sock
+fi
+
 # Remove any existing VNC locks
 rm -f /tmp/.X1-lock
 rm -f /tmp/.X11-unix/X1

@@ -35,7 +35,7 @@ It features XFCE4, Google Chrome, and standard Git tools, accessible via your br
    Open your web browser and navigate to:
    [http://localhost:6080](http://localhost:6080)
 
-   *Note: If asked for a password, the default VNC password is `password` (configured in Dockerfile).*
+   *Note: If asked for a password, the default password for both VNC and the `dev` user is `password`.*
 
 4. **Stop the Container:**
    ```bash
