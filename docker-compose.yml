@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  desktop:
+    build: .
+    container_name: linux-desktop
+    ports:
+      - "6080:6080" # NoVNC web access
+      - "5901:5901" # VNC direct access (optional)
+    shm_size: "2gb" # Required for Chrome to not crash
+    privileged: true # Required to bypass WSL detection via mounting
+    volumes:
+      - workspace:/home/dev/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+volumes:
+  workspace:
