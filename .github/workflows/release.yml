@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release Type'
+        required: true
+        default: 'nightly'
+        type: choice
+        options:
+        - stable
+        - beta
+        - nightly
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.calc_version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Calculate Version
+        id: calc_version
+        run: |
+          VERSION=$(python3 .github/scripts/version_manager.py --action calculate --type ${{ inputs.release_type }})
+          echo "Calculated version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update VERSION file
+        run: |
+          python3 .github/scripts/version_manager.py --action write --version ${{ steps.calc_version.outputs.version }}
+          
+      - name: Commit and Push Version
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add VERSION
+          git commit -m "chore: release ${{ steps.calc_version.outputs.version }}"
+          git push
+
+      - name: Create Tag
+        run: |
+          git tag ${{ steps.calc_version.outputs.version }}
+          git push origin ${{ steps.calc_version.outputs.version }}
+
+      - name: Generate Release Notes
+        id: release_notes
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.calc_version.outputs.version }}
+          generate_release_notes: true
+          prerelease: ${{ inputs.release_type != 'stable' }}
+
+      # Optional: Upload artifacts if needed. For now, we assume just source.
+      # If Docker image export is needed:
+      # - run: docker save ...
+      # - uses: actions/upload-release-asset@...
+
+  post-release:
+    needs: release
+    runs-on: ubuntu-latest
+    if: inputs.release_type != 'nightly'
+    steps:
+      - uses: actions/checkout@v3
+        with:
+            ref: main # Ensure we are on main
+            fetch-depth: 0
+            
+      - name: Pull latest
+        run: git pull origin main
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      
+      - name: Bump to Dev
+        run: |
+          NEXT_DEV=$(python3 .github/scripts/version_manager.py --action bump-dev)
+          echo "Bumping to: $NEXT_DEV"
+          python3 .github/scripts/version_manager.py --action write --version $NEXT_DEV
+          
+      - name: Commit and Push Dev Version
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add VERSION
+          git commit -m "chore: bump version to $NEXT_DEV [skip ci]"
+          git push origin main

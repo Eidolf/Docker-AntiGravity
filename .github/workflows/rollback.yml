@@ -1,0 +1,62 @@
+name: Rollback Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag to rollback (e.g. 2025.12.1)'
+        required: true
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete Release
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const tag = '${{ inputs.tag_name }}';
+            try {
+              const release = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: tag
+              });
+              
+              await github.rest.repos.deleteRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: release.data.id
+              });
+              console.log(`Deleted release for tag ${tag}`);
+            } catch (error) {
+              console.log(`No release found for tag ${tag} or error: ${error.message}`);
+            }
+
+      - name: Delete Tag
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const tag = '${{ inputs.tag_name }}';
+            try {
+              await github.rest.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `tags/${tag}`
+              });
+              console.log(`Deleted tag ${tag}`);
+            } catch (error) {
+               console.log(`Tag ${tag} not found or error: ${error.message}`);
+            }
+            
+      - name: Cleanup Workflow Runs
+        uses: actions/github-script@v6
+        with:
+          script: |
+             // Optional: Implementation to delete workflow runs associated with the tag
+             // specific logic depends on identifying runs by branch/tag.
+             console.log("Workflow run cleanup skipped for safety.");
