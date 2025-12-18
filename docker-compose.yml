@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   desktop:
@@ -11,8 +10,9 @@ services:
     privileged: true # Required to bypass WSL detection via mounting
     volumes:
       - workspace:/home/dev/workspace
-      - /var/run/docker.sock:/var/run/docker.sock
+      - docker_data:/var/lib/docker
     restart: unless-stopped
 
 volumes:
   workspace:
+  docker_data:

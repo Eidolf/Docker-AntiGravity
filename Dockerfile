@@ -22,7 +22,20 @@ RUN apt-get update && apt-get install -y \
     python3-numpy \
     net-tools \
     dbus-x11 \
+    software-properties-common \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js LTS (v22.x)
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y nodejs && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install Python 3.13
+RUN add-apt-repository -y ppa:deadsnakes/ppa && \
+    apt-get update && \
+    apt-get install -y python3.13 python3.13-venv python3.13-dev && \
+    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.13 1 && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Google Chrome Stable
 RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
@@ -32,14 +45,15 @@ RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor
     sed -i 's/exec -a "$0" "$HERE\/chrome" "$@"/exec -a "$0" "$HERE\/chrome" --no-sandbox "$@"/' /opt/google/chrome/google-chrome
 
 # Install Docker CLI
-RUN install -m 0755 -d /etc/apt/keyrings && \
+RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates && \
+    install -m 0755 -d /etc/apt/keyrings && \
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
     chmod a+r /etc/apt/keyrings/docker.gpg && \
     echo \
     "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
     $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
     apt-get update && \
-    apt-get install -y docker-ce-cli docker-compose-plugin && \
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin iptables && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Google AntiGravity
@@ -48,6 +62,13 @@ RUN mkdir -p /etc/apt/keyrings && \
     echo "deb [signed-by=/etc/apt/keyrings/antigravity-repo-key.gpg] https://us-central1-apt.pkg.dev/projects/antigravity-auto-updater-dev/ antigravity-debian main" | tee /etc/apt/sources.list.d/antigravity.list > /dev/null && \
     apt-get update && apt-get install -y antigravity && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Note: Antigravity manages its Chrome extension automatically.
+# If manual extension loading is needed, Chrome can be started with:
+#   google-chrome --load-extension=/opt/antigravity/chrome-extension
+# The previous ExtensionInstallForcelist policy was removed as it requires
+# a valid 32-character extension ID (a-p only) which must be generated from
+# the extension's public key.
 
 # Install LazyGit
 ENV LAZYGIT_VERSION=0.40.2
@@ -60,7 +81,6 @@ RUN curl -Lo lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/d
 RUN useradd -m -s /bin/bash dev && \
     echo "dev:password" | chpasswd && \
     echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
-    groupadd docker && \
     usermod -aG docker dev
 
 # Set up VNC and NoVNC directories

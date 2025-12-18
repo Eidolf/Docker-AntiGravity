@@ -9,10 +9,16 @@ if [ -f /etc/fake_osrelease ]; then
     sudo mount --bind /etc/fake_osrelease /proc/sys/kernel/osrelease
 fi
 
-# Fix Docker socket permissions
-if [ -e /var/run/docker.sock ]; then
-    sudo chmod 666 /var/run/docker.sock
+# Start Docker Daemon
+if [ -f /var/run/docker.pid ]; then
+    rm /var/run/docker.pid
 fi
+sudo service docker start
+echo "Waiting for Docker to start..."
+while ! sudo docker info >/dev/null 2>&1; do
+    sleep 1
+done
+echo "Docker started."
 
 # Remove any existing VNC locks
 rm -f /tmp/.X1-lock

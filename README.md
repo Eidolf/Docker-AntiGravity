@@ -12,7 +12,9 @@ It features XFCE4, Google Chrome, and standard Git tools, accessible via your br
     - **Git**: Built-in CLI `git`.
     - **Git GUI**: `git-gui` (Simple, native graphical interface).
     - **LazyGit**: Terminal-based UI for git (run `lazygit` in terminal).
-16:     - **Docker**: Docker CLI & Compose (uses host Docker daemon).
+    - **Docker**: Isolated Docker Daemon (Docker-in-Docker). Creates its own containers, separate from host.
+    - **Node.js**: LTS version (v22.x).
+    - **Python**: Version 3.13.
 
 ## Prerequisites
 - [Docker](https://docs.docker.com/get-docker/) installed.
