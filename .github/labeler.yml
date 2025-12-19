@@ -1,0 +1,21 @@
+# .github/labeler.yml
+
+ci:
+  - changed-files:
+    - any-glob-to-any-file: '.github/workflows/**'
+
+docker:
+  - changed-files:
+    - any-glob-to-any-file: 'Dockerfile'
+    - any-glob-to-any-file: 'docker-compose.yml'
+    - any-glob-to-any-file: '**/*.sh'
+
+docs:
+  - changed-files:
+    - any-glob-to-any-file: '*.md'
+    - any-glob-to-any-file: '**/*.txt'
+
+build:
+  - changed-files:
+    - any-glob-to-any-file: 'Makefile'
+    - any-glob-to-any-file: 'package.json'
