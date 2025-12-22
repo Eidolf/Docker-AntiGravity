@@ -24,6 +24,20 @@ echo "Docker started."
 rm -f /tmp/.X1-lock
 rm -f /tmp/.X11-unix/X1
 
+# Generate random passphrase if VNC_PASSWORD not set
+if [ -z "$VNC_PASSWORD" ]; then
+    VNC_PASSWORD=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 12)
+fi
+
+# Set VNC password
+mkdir -p /home/dev/.vnc
+echo "$VNC_PASSWORD" | vncpasswd -f > /home/dev/.vnc/passwd
+chmod 600 /home/dev/.vnc/passwd
+chown dev:dev /home/dev/.vnc/passwd
+
+# Set user password (for sudo/ssh if needed)
+echo "dev:$VNC_PASSWORD" | sudo chpasswd
+
 # Start VNC Server
 echo "Starting VNC Server..."
 vncserver :1 -geometry 1920x1080 -depth 24 -localhost no
@@ -41,7 +55,10 @@ echo "  Access via browser:"
 echo "    http://localhost:6080/vnc.html"
 echo ""
 echo "  Direct VNC connection:"
-echo "    localhost:5901 (password: password)"
+echo "    localhost:5901"
+echo ""
+echo "  GENERATED PASSPHRASE:"
+echo "    $VNC_PASSWORD"
 echo ""
 echo "=============================================="
 echo ""

@@ -81,7 +81,6 @@ RUN curl -Lo lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/d
 
 # Create a non-root user 'dev'
 RUN useradd -m -s /bin/bash dev && \
-    echo "dev:password" | chpasswd && \
     echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
     usermod -aG docker dev
 
@@ -101,9 +100,7 @@ USER dev
 WORKDIR /home/dev
 
 # Create .vnc directory
-RUN mkdir -p /home/dev/.vnc && \
-    echo "password" | vncpasswd -f > /home/dev/.vnc/passwd && \
-    chmod 600 /home/dev/.vnc/passwd
+RUN mkdir -p /home/dev/.vnc
 
 # Expose VNC port (5901) and NoVNC port (6080)
 EXPOSE 5901 6080

@@ -36,8 +36,8 @@ This project publishes a production-ready image to GitHub Container Registry. Yo
 3. **Access the Desktop**:
    - **NoVNC (Web)**: [http://localhost:6080](http://localhost:6080)
    - **VNC Client**: `localhost:5901`
-   - **Password**: `password` (default)
-   - **User/Pass**: `dev` / `password`
+   - **Password**: Randomly generated at startup (check logs: `docker logs antigravity-desktop`).
+   - **User/Pass**: `dev` / `<random>`
 
 ### Using Docker CLI
 
@@ -48,6 +48,42 @@ docker run -d \
   -p 5901:5901 \
   --shm-size=2g \
   ghcr.io/eidolf/docker-antigravity:latest
+```
+
+### Nginx Reverse Proxy Configuration
+
+If you are running behind Nginx (e.g., exposing port 443), you must configure WebSocket headers to avoid `404 Not Found` errors.
+
+Example `nginx` configuration block:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name desktop.example.com;
+
+    # SSL Certs ...
+    # ...
+
+    location / {
+        proxy_pass http://localhost:6080/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host $host;
+        # Crucial for NoVNC to find web resources:
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # Redirect Websockify traffic if needed (though root / usually handles it if Upgrade headers are set)
+    location /websockify {
+        proxy_pass http://localhost:6080/websockify;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host $host;
+    }
+}
 ```
 
 ## Development & Workflows
