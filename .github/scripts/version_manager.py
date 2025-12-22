@@ -76,7 +76,7 @@ def calculate_next_version(release_type):
     elif release_type == 'beta':
         return f"{base}-beta"
     elif release_type == 'nightly':
-        timestamp = now.strftime('%Y%m%d')
+        timestamp = now.strftime('%Y%m%d.%H%M')
         return f"{base}-nightly.{timestamp}"
     else:
         raise ValueError("Unknown release type")
