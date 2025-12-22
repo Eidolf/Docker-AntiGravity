@@ -30,5 +30,21 @@ vncserver :1 -geometry 1920x1080 -depth 24 -localhost no
 
 # Start NoVNC Proxy
 echo "Starting NoVNC..."
+
+# Display access URLs
+echo ""
+echo "=============================================="
+echo "  AntiGravity Desktop is ready!"
+echo "=============================================="
+echo ""
+echo "  Access via browser:"
+echo "    http://localhost:6080/vnc.html"
+echo ""
+echo "  Direct VNC connection:"
+echo "    localhost:5901 (password: password)"
+echo ""
+echo "=============================================="
+echo ""
+
 # Pointing websockify to the VNC server port 5901
 /usr/share/novnc/utils/launch.sh --vnc localhost:5901 --listen 6080

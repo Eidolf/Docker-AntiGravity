@@ -1,18 +1,27 @@
+name: antigravity
 
 services:
-  desktop:
+  antigravity-desktop:
     build: .
-    container_name: linux-desktop
+    container_name: antigravity-desktop
     ports:
       - "6080:6080" # NoVNC web access
       - "5901:5901" # VNC direct access (optional)
     shm_size: "2gb" # Required for Chrome to not crash
     privileged: true # Required to bypass WSL detection via mounting
     volumes:
-      - workspace:/home/dev/workspace
-      - docker_data:/var/lib/docker
+      - antigravity-workspace:/home/dev/workspace
+      - antigravity-docker-data:/var/lib/docker
+    networks:
+      - antigravity-network
     restart: unless-stopped
 
 volumes:
-  workspace:
-  docker_data:
+  antigravity-workspace:
+    name: antigravity-workspace
+  antigravity-docker-data:
+    name: antigravity-docker-data
+
+networks:
+  antigravity-network:
+    name: antigravity-network
