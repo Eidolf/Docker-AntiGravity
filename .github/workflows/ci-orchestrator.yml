@@ -1,4 +1,4 @@
-name: CI Orchestrator
+name: CI
 
 on:
   push:
@@ -8,6 +8,7 @@ on:
       - 'LICENSE'
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/pull_request_template.md'
+      - '.github/labeler.yml'
   pull_request:
     branches: [ "main" ]
     paths-ignore:
@@ -15,9 +16,10 @@ on:
       - 'LICENSE'
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/pull_request_template.md'
+      - '.github/labeler.yml'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -25,32 +27,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/scripts
+            *.py
+
+      - name: Check for Python files
+        id: check-py
+        run: |
+          if find . -name "*.py" | grep -q .; then
+            echo "has_py=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_py=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set up Python
+        if: steps.check-py.outputs.has_py == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
-      - name: Install Linting Tools
-        run: pip install ruff
-
-      - name: Run Ruff (Python Lint)
+      - name: Run Ruff
+        if: steps.check-py.outputs.has_py == 'true'
         run: |
-            if find . -name "*.py" | grep -q .; then
-                ruff check .
-            else
-                echo "No python files to lint."
-            fi
-
-  # Placeholder for tests if/when they are added
-  test:
-    runs-on: ubuntu-latest
-    needs: lint
-    if: success()
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run Tests
-        run: echo "No tests configured yet."
+          pip install ruff
+          ruff check .
 
   build-check:
     runs-on: ubuntu-latest

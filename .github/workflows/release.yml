@@ -15,6 +15,15 @@ on:
 
 permissions:
   contents: write
+  packages: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/antigravity
 
 jobs:
   release:
@@ -22,14 +31,14 @@ jobs:
     outputs:
       new_version: ${{ steps.calc_version.outputs.version }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.13"
 
       - name: Calculate Version
         id: calc_version
@@ -39,63 +48,90 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Update VERSION file
-        run: |
-          python3 .github/scripts/version_manager.py --action write --version ${{ steps.calc_version.outputs.version }}
-          
-      - name: Commit and Push Version
+        run: python3 .github/scripts/version_manager.py --action write --version ${{ steps.calc_version.outputs.version }}
+
+      - name: Commit, Tag, and Push
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add VERSION
-          git commit -m "chore: release ${{ steps.calc_version.outputs.version }}"
-          git push
-
-      - name: Create Tag
-        run: |
+          git commit -m "chore: release ${{ steps.calc_version.outputs.version }} [skip ci]"
           git tag ${{ steps.calc_version.outputs.version }}
-          git push origin ${{ steps.calc_version.outputs.version }}
+          git push --follow-tags
 
       - name: Generate Release Notes
-        id: release_notes
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.calc_version.outputs.version }}
           generate_release_notes: true
           prerelease: ${{ inputs.release_type != 'stable' }}
 
-      # Optional: Upload artifacts if needed. For now, we assume just source.
-      # If Docker image export is needed:
-      # - run: docker save ...
-      # - uses: actions/upload-release-asset@...
+  docker-publish:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release.outputs.new_version }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable=${{ inputs.release_type == 'stable' }}
+            type=raw,value=${{ needs.release.outputs.new_version }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   post-release:
-    needs: release
+    needs: [release, docker-publish]
     runs-on: ubuntu-latest
     if: inputs.release_type != 'nightly'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
-            ref: main # Ensure we are on main
-            fetch-depth: 0
-            
-      - name: Pull latest
-        run: git pull origin main
+          ref: main
+          fetch-depth: 0
+
+      - run: git pull origin main
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
-      
+          python-version: "3.13"
+
       - name: Bump to Dev
+        id: bump
         run: |
           NEXT_DEV=$(python3 .github/scripts/version_manager.py --action bump-dev)
           echo "Bumping to: $NEXT_DEV"
           python3 .github/scripts/version_manager.py --action write --version $NEXT_DEV
-          
+          echo "next_dev=$NEXT_DEV" >> $GITHUB_OUTPUT
+
       - name: Commit and Push Dev Version
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add VERSION
-          git commit -m "chore: bump version to $NEXT_DEV [skip ci]"
+          git commit -m "chore: bump version to ${{ steps.bump.outputs.next_dev }} [skip ci]"
           git push origin main
