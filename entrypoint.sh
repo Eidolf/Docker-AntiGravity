@@ -24,23 +24,33 @@ echo "Docker started."
 rm -f /tmp/.X1-lock
 rm -f /tmp/.X11-unix/X1
 
-# Generate random passphrase if VNC_PASSWORD not set
+# Generate or recover VNC_PASSWORD
 if [ -z "$VNC_PASSWORD" ]; then
-    if [ -f /home/dev/.vnc/passwd ]; then
-        echo "Example: Persistent password found. Skipping generation."
+    if [ -f /home/dev/.vnc/passwd_clear ]; then
+        echo "Example: Persistent password file found. Recovering..."
+        VNC_PASSWORD=$(cat /home/dev/.vnc/passwd_clear)
+    elif [ -f /home/dev/.vnc/passwd ]; then
+        echo "Warning: VNC password hash exists but cleartext missing. Regenerating to ensure sync."
+        VNC_PASSWORD=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 12)
     else
         VNC_PASSWORD=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 12)
     fi
 fi
 
-# Set VNC password if VNC_PASSWORD is set (either from env or generated)
+# Set VNC password and system password
 if [ -n "$VNC_PASSWORD" ]; then
     mkdir -p /home/dev/.vnc
+    
+    # Save cleartext for persistence restoration
+    echo "$VNC_PASSWORD" > /home/dev/.vnc/passwd_clear
+    chmod 600 /home/dev/.vnc/passwd_clear
+    chown dev:dev /home/dev/.vnc/passwd_clear
+
     echo "$VNC_PASSWORD" | vncpasswd -f > /home/dev/.vnc/passwd
     chmod 600 /home/dev/.vnc/passwd
     chown dev:dev /home/dev/.vnc/passwd
 
-    # Set user password (for sudo/ssh if needed)
+    # Set user password (crucial for screen unlocking)
     echo "dev:$VNC_PASSWORD" | sudo chpasswd
 fi
 

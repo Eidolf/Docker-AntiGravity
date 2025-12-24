@@ -46,8 +46,8 @@ RUN add-apt-repository -y ppa:deadsnakes/ppa && \
 RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
     echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list && \
     apt-get update && apt-get install -y google-chrome-stable && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* && \
-    sed -i 's/exec -a "$0" "$HERE\/chrome" "$@"/exec -a "$0" "$HERE\/chrome" --no-sandbox "$@"/' /opt/google/chrome/google-chrome
+    sed -i 's/exec -a "$0" "$HERE\/chrome" "$@"/exec -a "$0" "$HERE\/chrome" --password-store=basic "$@"/' /opt/google/chrome/google-chrome && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Docker CLI
 RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates && \
