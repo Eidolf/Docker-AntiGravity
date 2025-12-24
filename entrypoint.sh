@@ -20,9 +20,10 @@ while ! sudo docker info >/dev/null 2>&1; do
 done
 echo "Docker started."
 
-# Remove any existing VNC locks
+# Remove any existing VNC locks and Chrome locks
 rm -f /tmp/.X1-lock
 rm -f /tmp/.X11-unix/X1
+rm -f /home/dev/.config/google-chrome/SingletonLock
 
 # Generate or recover VNC_PASSWORD
 if [ -z "$VNC_PASSWORD" ]; then
