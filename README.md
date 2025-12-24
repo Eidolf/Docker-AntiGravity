@@ -1,6 +1,6 @@
 # Docker AntiGravity Linux Desktop
 
-[![Docker Publish](https://github.com/eidolf/Docker-AntiGravity/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/eidolf/Docker-AntiGravity/actions/workflows/docker-publish.yml)
+[![Release](https://github.com/eidolf/Docker-AntiGravity/actions/workflows/release.yml/badge.svg)](https://github.com/eidolf/Docker-AntiGravity/actions/workflows/release.yml)
 [![CI Orchestrator](https://github.com/eidolf/Docker-AntiGravity/actions/workflows/ci-orchestrator.yml/badge.svg)](https://github.com/eidolf/Docker-AntiGravity/actions/workflows/ci-orchestrator.yml)
 
 A lightweight, web-accessible Ubuntu desktop environment in a Docker container.
@@ -93,7 +93,7 @@ This project follows modern DevOps practices with automated CI/CD pipelines.
 
 ### Workflows
 
-- **Docker Publish** (`docker-publish.yml`):
+- **Release** (`release.yml`):
   - Triggers on push to `main` or release tags.
   - Builds the Docker image.
   - Pushes to `ghcr.io/eidolf/docker-antigravity`.
