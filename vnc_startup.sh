@@ -5,4 +5,17 @@
 # Ensure this is used as the xstartup
 unset SESSION_MANAGER
 unset DBUS_SESSION_BUS_ADDRESS
+
+# Start DBus if it's not running
+if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
+    eval $(dbus-launch --sh-syntax --exit-with-session)
+fi
+
+# Start gnome-keyring-daemon
+# We need to unlock the keyring. Since we don't have the password in plain text easily accessible 
+# (unless we reuse VNC_PASSWORD or just leave it locked but available), we start the daemon.
+# For many apps, just having the daemon running and the socket available clears the "keyring not available" warning.
+eval $(/usr/bin/gnome-keyring-daemon --start --components=pkcs11,secrets,ssh)
+export SSH_AUTH_SOCK
+
 startxfce4 &

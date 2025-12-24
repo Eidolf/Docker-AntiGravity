@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
     tigervnc-standalone-server \
     novnc \
     websockify \
+    gnome-keyring \
+    libsecret-1-0 \
     curl \
     wget \
     git \
@@ -23,6 +25,7 @@ RUN apt-get update && apt-get install -y \
     net-tools \
     dbus-x11 \
     software-properties-common \
+    && apt-get purge -y xfce4-power-manager \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js LTS (v22.x)

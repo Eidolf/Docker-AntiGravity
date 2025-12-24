@@ -5,8 +5,8 @@ services:
     build: .
     container_name: antigravity-desktop
     ports:
-      - "6080:6080" # NoVNC web access
-      - "5901:5901" # VNC direct access (optional)
+      - "${HOST_WEB_PORT:-6080}:6080" # NoVNC web access
+      - "${HOST_VNC_PORT:-5901}:5901" # VNC direct access (optional)
     shm_size: "2gb" # Required for Chrome to not crash
     privileged: true # Required to bypass WSL detection via mounting
     volumes:
