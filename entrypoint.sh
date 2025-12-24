@@ -26,17 +26,23 @@ rm -f /tmp/.X11-unix/X1
 
 # Generate random passphrase if VNC_PASSWORD not set
 if [ -z "$VNC_PASSWORD" ]; then
-    VNC_PASSWORD=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 12)
+    if [ -f /home/dev/.vnc/passwd ]; then
+        echo "Example: Persistent password found. Skipping generation."
+    else
+        VNC_PASSWORD=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 12)
+    fi
 fi
 
-# Set VNC password
-mkdir -p /home/dev/.vnc
-echo "$VNC_PASSWORD" | vncpasswd -f > /home/dev/.vnc/passwd
-chmod 600 /home/dev/.vnc/passwd
-chown dev:dev /home/dev/.vnc/passwd
+# Set VNC password if VNC_PASSWORD is set (either from env or generated)
+if [ -n "$VNC_PASSWORD" ]; then
+    mkdir -p /home/dev/.vnc
+    echo "$VNC_PASSWORD" | vncpasswd -f > /home/dev/.vnc/passwd
+    chmod 600 /home/dev/.vnc/passwd
+    chown dev:dev /home/dev/.vnc/passwd
 
-# Set user password (for sudo/ssh if needed)
-echo "dev:$VNC_PASSWORD" | sudo chpasswd
+    # Set user password (for sudo/ssh if needed)
+    echo "dev:$VNC_PASSWORD" | sudo chpasswd
+fi
 
 # Start VNC Server
 echo "Starting VNC Server..."
@@ -57,8 +63,13 @@ echo ""
 echo "  Direct VNC connection:"
 echo "    localhost:5901"
 echo ""
-echo "  GENERATED PASSPHRASE:"
-echo "    $VNC_PASSWORD"
+if [ -n "$VNC_PASSWORD" ]; then
+    echo "  GENERATED PASSPHRASE:"
+    echo "    $VNC_PASSWORD"
+else
+    echo "  PASSPHRASE:"
+    echo "    (Existing persistent password used)"
+fi
 echo ""
 echo "=============================================="
 echo ""

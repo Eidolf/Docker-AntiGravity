@@ -10,6 +10,7 @@ services:
     shm_size: "2gb" # Required for Chrome to not crash
     privileged: true # Required to bypass WSL detection via mounting
     volumes:
+      - antigravity-home:/home/dev
       - antigravity-workspace:/home/dev/workspace
       - antigravity-docker-data:/var/lib/docker
     networks:
@@ -17,6 +18,8 @@ services:
     restart: unless-stopped
 
 volumes:
+  antigravity-home:
+    name: antigravity-home
   antigravity-workspace:
     name: antigravity-workspace
   antigravity-docker-data:

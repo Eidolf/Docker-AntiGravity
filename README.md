@@ -18,6 +18,7 @@ It features XFCE4, Google Chrome, and standard Git tools, accessible via your br
     - **Docker**: Isolated Docker Daemon (Docker-in-Docker). Creates its own containers, separate from host.
     - **Node.js**: LTS version (v22.x).
     - **Python**: Version 3.13.
+- **Persistence**: User settings and home directory are persisted via Docker volume.
 
 ## Getting Started
 
@@ -36,7 +37,7 @@ This project publishes a production-ready image to GitHub Container Registry. Yo
 3. **Access the Desktop**:
    - **NoVNC (Web)**: [http://localhost:6080](http://localhost:6080)
    - **VNC Client**: `localhost:5901`
-   - **Password**: Randomly generated at startup (check logs: `docker logs antigravity-desktop`).
+   - **Password**: Randomly generated at startup, or retained from previous session if volume is persistent.
    - **User/Pass**: `dev` / `<random>`
 
 ### Using Docker CLI
