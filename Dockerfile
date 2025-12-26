@@ -25,6 +25,7 @@ RUN apt-get update && apt-get install -y \
     net-tools \
     dbus-x11 \
     software-properties-common \
+    wmctrl \
     && apt-get purge -y xfce4-power-manager xfce4-screensaver light-locker \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
