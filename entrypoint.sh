@@ -11,7 +11,7 @@ fi
 
 # Start Docker Daemon
 if [ -f /var/run/docker.pid ]; then
-    rm /var/run/docker.pid
+    sudo rm /var/run/docker.pid
 fi
 sudo service docker start
 echo "Waiting for Docker to start..."

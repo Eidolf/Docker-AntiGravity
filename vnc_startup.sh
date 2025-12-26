@@ -24,4 +24,4 @@ else
 fi
 export SSH_AUTH_SOCK
 
-startxfce4 &
+startxfce4
