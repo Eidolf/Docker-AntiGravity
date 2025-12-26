@@ -55,6 +55,14 @@ if [ -n "$VNC_PASSWORD" ]; then
     echo "dev:$VNC_PASSWORD" | sudo chpasswd
 fi
 
+# Export VNC_PASSWORD so vnc_startup.sh can use it to unlock keyring
+export VNC_PASSWORD
+
+# Ensure vnc_startup.sh is used
+if [ ! -f /home/dev/.vnc/xstartup ]; then
+    ln -s /usr/local/bin/vnc_startup.sh /home/dev/.vnc/xstartup
+fi
+
 # Start VNC Server
 echo "Starting VNC Server..."
 vncserver :1 -geometry 1920x1080 -depth 24 -localhost no
