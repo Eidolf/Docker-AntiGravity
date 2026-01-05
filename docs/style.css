@@ -207,7 +207,8 @@ h1.glitch::after {
 
 .description {
     font-size: 1.1rem;
-    color: var(--text-secondary);
+    color: #d8b4fe;
+    /* Lilac/Purple for better visibility */
     max-width: 700px;
     margin: 0 auto 3rem;
     line-height: 1.6;
