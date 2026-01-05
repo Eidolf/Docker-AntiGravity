@@ -345,7 +345,8 @@ footer a:hover {
 /* Dashboard Preview */
 .dashboard-preview {
     margin: 40px auto;
-    max-width: 900px;
+    max-width: 600px;
+    /* Reduced from 900px */
     perspective: 1000px;
 }
 
