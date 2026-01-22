@@ -33,8 +33,7 @@ function copyCommand() {
     const command = 'docker run -d -p 6080:6080 ghcr.io/eidolf/docker-antigravity:latest';
     navigator.clipboard.writeText(command).then(() => {
         const btn = document.querySelector('.copy-btn');
-        const icon = document.getElementById('copy-icon');
-        const originalText = btn.innerHTML;
+
 
         btn.innerHTML = `<span id="copy-icon">✅</span> Copied!`;
         btn.style.color = '#00ff9d';
@@ -47,6 +46,7 @@ function copyCommand() {
         console.error('Failed to copy text: ', err);
     });
 }
+window.copyCommand = copyCommand;
 
 // Add keyframes dynamically
 const style = document.createElement('style');

@@ -12,6 +12,18 @@ FAILED=0
 
 echo -e "${YELLOW}=== 🚀 Starting Pre-Flight Checks ===${NC}"
 
+# Ensure we are in the project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
+
+if [ -z "$PROJECT_ROOT" ]; then
+    echo -e "${RED}❌ Could not determine project root. Are you in a git repository?${NC}"
+    exit 1
+fi
+
+cd "$PROJECT_ROOT"
+echo -e "${YELLOW}📂 Working in: $PROJECT_ROOT${NC}"
+
 # 1. Local Python Linting (Fast)
 echo -e "\n${YELLOW}▶ Running Local Python Lint (Ruff)...${NC}"
 if command -v ruff &> /dev/null; then
@@ -30,8 +42,8 @@ fi
 # We'll use the default medium image or non-interactive if configured.
 
 echo -e "\n${YELLOW}▶ Running GitHub Actions Workflow (Lint Job)...${NC}"
-# Run specific job 'lint' from CI workflow
-if act -j lint --rm; then
+# Run specific job 'lint-and-test' from CI workflow
+if act -j lint-and-test --rm; then
     echo -e "${GREEN}✔ CI Lint Job Passed${NC}"
 else
     echo -e "${RED}✘ CI Lint Job Failed${NC}"
@@ -39,9 +51,9 @@ else
 fi
 
 echo -e "\n${YELLOW}▶ Running GitHub Actions Workflow (Build Check)...${NC}"
-# Run specific job 'build-check' from CI workflow
+# Run specific job 'build-validation' from CI workflow
 # Note: This might take longer as it builds the Docker image
-if act -j build-check --rm; then
+if act -j build-validation --rm; then
     echo -e "${GREEN}✔ CI Build Check Job Passed${NC}"
 else
     echo -e "${RED}✘ CI Build Check Job Failed${NC}"
