@@ -101,8 +101,17 @@ RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh /usr/local/bin/vnc_startup.sh 
     chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/vnc_startup.sh
 
 # Switch to non-root user
-USER dev
-WORKDIR /home/dev
+# Install gosu
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y gosu; \
+    rm -rf /var/lib/apt/lists/*; \
+    # verify that the binary works
+    gosu nobody true
+
+# Switch to non-root user (Moved to entrypoint logic)
+# USER dev
+# WORKDIR /home/devWORKDIR /home/dev
 
 # Create .vnc directory
 RUN mkdir -p /home/dev/.vnc

@@ -20,6 +20,16 @@ It features XFCE4, Google Chrome, and standard Git tools, accessible via your br
     - **Python**: Version 3.13.
 - **Persistence**: User settings and home directory are persisted via Docker volume.
 
+## Dynamic Package Installation
+You can install additional packages at startup using environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `ADDITIONAL_PACKAGES` | Space-separated list of apt packages to install (e.g., `htop nano`) |
+| `INSTALL_ANDROID_TOOLS` | Set to `true` to install `adb`, `fastboot`, and platform tools |
+| `INSTALL_DEV_TOOLS` | Set to `true` to install `build-essential`, `cmake`, `gdb`, `clang` |
+| `INSTALL_WINDOWS_TOOLS` | Set to `true` to install `mingw-w64` for cross-compilation |
+
 ## Getting Started
 
 ### Quick Start with Portainer / Docker Compose

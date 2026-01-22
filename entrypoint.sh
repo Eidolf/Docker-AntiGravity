@@ -3,11 +3,47 @@ set -e
 
 # Mask WSL detection
 if [ -f /etc/fake_version ]; then
-    sudo mount --bind /etc/fake_version /proc/version
+    mount --bind /etc/fake_version /proc/version || true
 fi
 if [ -f /etc/fake_osrelease ]; then
-    sudo mount --bind /etc/fake_osrelease /proc/sys/kernel/osrelease
+    mount --bind /etc/fake_osrelease /proc/sys/kernel/osrelease || true
 fi
+
+# Dynamic Package Installation
+PACKAGES_TO_INSTALL=""
+
+if [ "$INSTALL_ANDROID_TOOLS" = "true" ]; then
+    echo "Creating Android tools installation list..."
+    PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL android-sdk-platform-tools-common adb fastboot"
+fi
+
+if [ "$INSTALL_DEV_TOOLS" = "true" ]; then
+    echo "Creating Dev tools installation list..."
+    PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL build-essential cmake gdb clang"
+fi
+
+if [ "$INSTALL_WINDOWS_TOOLS" = "true" ]; then
+    echo "Creating Windows cross-compilation tools installation list..."
+    PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL mingw-w64"
+fi
+
+if [ -n "$ADDITIONAL_PACKAGES" ]; then
+    echo "Adding custom packages: $ADDITIONAL_PACKAGES"
+    PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL $ADDITIONAL_PACKAGES"
+fi
+
+if [ -n "$PACKAGES_TO_INSTALL" ]; then
+    echo "Installing additional packages: $PACKAGES_TO_INSTALL"
+    apt-get update
+    # shellcheck disable=SC2086
+    apt-get install -y $PACKAGES_TO_INSTALL
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+fi
+
+# Fix permissions for /home/dev (in case of volume mount issues)
+echo "Fixing permissions for /home/dev..."
+chown -R dev:dev /home/dev
+
 
 # Start Docker Daemon
 if [ -f /var/run/docker.pid ]; then
@@ -64,8 +100,9 @@ if [ ! -f /home/dev/.vnc/xstartup ]; then
 fi
 
 # Start VNC Server
+# Start VNC Server
 echo "Starting VNC Server..."
-vncserver :1 -geometry 1920x1080 -depth 24 -localhost no
+gosu dev vncserver :1 -geometry 1920x1080 -depth 24 -localhost no
 
 # Start NoVNC Proxy
 echo "Starting NoVNC..."
@@ -94,4 +131,5 @@ echo "=============================================="
 echo ""
 
 # Pointing websockify to the VNC server port 5901
-/usr/share/novnc/utils/launch.sh --vnc localhost:5901 --listen 6080
+# Pointing websockify to the VNC server port 5901
+gosu dev /usr/share/novnc/utils/launch.sh --vnc localhost:5901 --listen 6080
