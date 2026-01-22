@@ -49,6 +49,11 @@ services:
     environment:
       - PUID=1000 # User ID
       - PGID=1000 # Group ID
+      # Dynamic Package Installation Examples:
+      # - ADDITIONAL_PACKAGES=htop nano default-jdk
+      # - INSTALL_ANDROID_TOOLS=true
+      # - INSTALL_DEV_TOOLS=true
+      # - INSTALL_WINDOWS_TOOLS=true
     volumes:
       # Persist user home directory (settings, files)
       - antigravity-data:/home/dev
