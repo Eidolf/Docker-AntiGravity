@@ -1,4 +1,4 @@
-name: Release
+name: Release Manager
 
 on:
   workflow_dispatch:
@@ -9,27 +9,17 @@ on:
         default: 'nightly'
         type: choice
         options:
-        - stable
-        - beta
-        - nightly
+          - nightly
+          - beta
+          - stable
 
 permissions:
   contents: write
   packages: write
 
-concurrency:
-  group: release
-  cancel-in-progress: false
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/antigravity
-
 jobs:
   release:
     runs-on: ubuntu-latest
-    outputs:
-      new_version: ${{ steps.calc_version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,97 +31,54 @@ jobs:
           python-version: "3.13"
 
       - name: Calculate Version
-        id: calc_version
-        run: |
-          VERSION=$(python3 .github/scripts/version_manager.py --action calculate --type ${{ inputs.release_type }})
-          echo "Calculated version: $VERSION"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+        id: version
+        run: python3 version_manager.py ${{ inputs.release_type }}
 
-      - name: Update VERSION file
-        run: python3 .github/scripts/version_manager.py --action write --version ${{ steps.calc_version.outputs.version }}
-
-      - name: Commit, Tag, and Push
+      - name: Commit & Push Version Bump
         run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+          git config --global user.name "Antigravity Bot"
+          git config --global user.email "bot@antigravity.dev"
           git add VERSION
-          git commit -m "chore: release ${{ steps.calc_version.outputs.version }} [skip ci]"
-          git tag ${{ steps.calc_version.outputs.version }}
-          git push --follow-tags
+          git commit -m "chore(release): bump version to ${{ steps.version.outputs.version }}"
+          git push
+
+      - name: Create Tag
+        run: |
+          git tag ${{ steps.version.outputs.version }}
+          git push origin ${{ steps.version.outputs.version }}
 
       - name: Generate Release Notes
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.calc_version.outputs.version }}
+          tag_name: ${{ steps.version.outputs.version }}
           generate_release_notes: true
           prerelease: ${{ inputs.release_type != 'stable' }}
 
-  docker-publish:
-    needs: release
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          ref: ${{ needs.release.outputs.new_version }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=latest,enable=${{ inputs.release_type == 'stable' }}
-            type=raw,value=${{ needs.release.outputs.new_version }}
-
-      - name: Build and push Docker image
+      - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
+            ${{ inputs.release_type == 'stable' && format('ghcr.io/{0}:latest', github.repository) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  post-release:
-    needs: [release, docker-publish]
-    runs-on: ubuntu-latest
-    if: inputs.release_type != 'nightly'
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-
-      - run: git pull origin main
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
-      - name: Bump to Dev
-        id: bump
+            
+      - name: Bump to Dev Version
+        if: inputs.release_type != 'nightly'
         run: |
-          NEXT_DEV=$(python3 .github/scripts/version_manager.py --action bump-dev)
-          echo "Bumping to: $NEXT_DEV"
-          python3 .github/scripts/version_manager.py --action write --version $NEXT_DEV
-          echo "next_dev=$NEXT_DEV" >> $GITHUB_OUTPUT
-
-      - name: Commit and Push Dev Version
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+          python3 version_manager.py dev
           git add VERSION
-          git commit -m "chore: bump version to ${{ steps.bump.outputs.next_dev }} [skip ci]"
-          git push origin main
+          git commit -m "chore: bump to dev version [skip ci]"
+          git push

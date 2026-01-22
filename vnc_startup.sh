@@ -31,31 +31,7 @@ mkdir -p $HOME/.config/autostart
 sudo mkdir -p /data/antigravity
 sudo chown -R dev:dev /data/antigravity
 
-# Create Antigravity Autostart entry
-cat > $HOME/.config/autostart/antigravity.desktop <<EOF
-[Desktop Entry]
-Type=Application
-Name=Antigravity
-Exec=antigravity --start-maximized --start-fullscreen --no-sandbox --user-data-dir=/data/antigravity
-StartupNotify=false
-Terminal=false
-Hidden=false
-EOF
 
-# Background task to force Antigravity into fullscreen
-# It waits for the window to appear and then sets the fullscreen property
-(
-    echo "Waiting for Antigravity window..."
-    for i in {1..30}; do
-        if wmctrl -l | grep -i "Antigravity"; then
-            echo "Antigravity window found. Forcing fullscreen..."
-            sleep 1 # Wait for window to be fully ready
-            wmctrl -r ":ACTIVE:" -b add,fullscreen || wmctrl -r "Antigravity" -b add,fullscreen
-            break
-        fi
-        sleep 1
-    done
-) &
 
 
 

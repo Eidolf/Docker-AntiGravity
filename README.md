@@ -22,23 +22,41 @@ It features XFCE4, Google Chrome, and standard Git tools, accessible via your br
 
 ## Getting Started
 
-### Using the Pre-built Image (Recommended)
+### Quick Start with Portainer / Docker Compose
 
-This project publishes a production-ready image to GitHub Container Registry. You can run it directly using the provided `docker-compose.yml` or the CLI.
+You can easily deploy this stack using Portainer or Docker Compose. Copy the configuration below:
 
-1. **Download `docker-compose.yml`** (or clone the repo):
-   [Download docker-compose.yml](https://raw.githubusercontent.com/eidolf/Docker-AntiGravity/main/docker-compose.yml)
+```yaml
+version: '3.8'
+services:
+  antigravity:
+    image: ghcr.io/eidolf/docker-antigravity:latest
+    container_name: antigravity
+    restart: unless-stopped
+    ports:
+      - "6080:6080" # Web Access (NoVNC)
+      # - "5901:5901" # Optional: VNC Direct Access
+    environment:
+      - PUID=1000 # User ID
+      - PGID=1000 # Group ID
+    volumes:
+      # Persist user home directory (settings, files)
+      - antigravity-data:/home/dev
+      # Optional: Mount a local workspace
+      # - /path/to/local/workspace:/home/dev/workspace
+    shm_size: "2gb"    # Required for Chrome to prevent crashes
+    privileged: true   # Required for Docker-in-Docker functionality
 
-2. **Start the container**:
-   ```bash
-   docker-compose up -d
-   ```
+volumes:
+  antigravity-data:
+```
 
-3. **Access the Desktop**:
-   - **NoVNC (Web)**: [http://localhost:6080](http://localhost:6080)
-   - **VNC Client**: `localhost:5901`
-   - **Password**: Randomly generated at startup, or retained from previous session if volume is persistent.
-   - **User/Pass**: `dev` / `<random>`
+1. Copy the YAML above into your **Portainer Stack** or save as `docker-compose.yml`.
+2. Adjust ports or volumes if necessary.
+3. Deploy the stack.
+4. Access via [http://localhost:6080](http://localhost:6080).
+
+### Using the Pre-built Image (CLI)
 
 ### Using Docker CLI
 

@@ -1,0 +1,21 @@
+{
+    "name": "docker-antigravity",
+    "version": "1.0.0",
+    "description": "Antigravity Docker Project",
+    "private": true,
+    "scripts": {
+        "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+        "audit": "npm audit fix",
+        "test": "echo \"Error: no test specified\" && exit 0"
+    },
+    "dependencies": {},
+    "devDependencies": {
+        "eslint": "^8.57.0",
+        "eslint-config-standard": "^17.1.0",
+        "eslint-plugin-import": "^2.29.1",
+        "eslint-plugin-n": "^16.6.2",
+        "eslint-plugin-promise": "^6.1.1",
+        "@typescript-eslint/eslint-plugin": "^7.1.0",
+        "@typescript-eslint/parser": "^7.1.0"
+    }
+}

@@ -1,4 +1,4 @@
-name: CI
+name: CI Orchestrator
 
 on:
   push:
@@ -25,35 +25,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint:
+  lint-and-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check for Python files
-        id: check-py
-        run: |
-          if find . -name "*.py" | grep -q .; then
-            echo "has_py=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_py=false" >> $GITHUB_OUTPUT
-          fi
-
+      # Python Setup & Lint
       - name: Set up Python
-        if: steps.check-py.outputs.has_py == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+          cache: 'pip'
 
-      - name: Run Ruff
-        if: steps.check-py.outputs.has_py == 'true'
-        run: |
-          pip install ruff
-          ruff check .
+      - name: Install Python Dependencies
+        run: pip install ruff pytest
 
-  build-check:
+      - name: Run Ruff (Lint)
+        run: ruff check .
+
+      # Node Setup & Lint
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Audit Node Dependencies
+        run: npm audit fix || true
+
+      - name: Run ESLint
+        run: npm run lint
+
+  build-validation:
+    needs: lint-and-test
     runs-on: ubuntu-latest
-    needs: lint
     steps:
       - uses: actions/checkout@v4
 

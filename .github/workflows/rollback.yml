@@ -1,62 +1,34 @@
-name: Rollback Release
+name: Rollback
 
 on:
   workflow_dispatch:
     inputs:
-      tag_name:
-        description: 'Tag to rollback (e.g. 2025.12.1)'
+      version:
+        description: 'Version to rollback (e.g., 2026.01.1)'
         required: true
+        type: string
+      confirmation:
+        description: 'Type "CONFIRM" to proceed'
+        required: true
+        type: string
 
 permissions:
   contents: write
-  actions: write
+  packages: write
 
 jobs:
   rollback:
+    if: inputs.confirmation == 'CONFIRM'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      
       - name: Delete Release
-        uses: actions/github-script@v6
+        uses: dev-drprasad/delete-tag-and-release@v1.0
         with:
-          script: |
-            const tag = '${{ inputs.tag_name }}';
-            try {
-              const release = await github.rest.repos.getReleaseByTag({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                tag: tag
-              });
-              
-              await github.rest.repos.deleteRelease({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                release_id: release.data.id
-              });
-              console.log(`Deleted release for tag ${tag}`);
-            } catch (error) {
-              console.log(`No release found for tag ${tag} or error: ${error.message}`);
-            }
+          tag_name: ${{ inputs.version }}
+          delete_release: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Delete Tag
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const tag = '${{ inputs.tag_name }}';
-            try {
-              await github.rest.git.deleteRef({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                ref: `tags/${tag}`
-              });
-              console.log(`Deleted tag ${tag}`);
-            } catch (error) {
-               console.log(`Tag ${tag} not found or error: ${error.message}`);
-            }
-            
-      - name: Cleanup Workflow Runs
-        uses: actions/github-script@v6
-        with:
-          script: |
-             // Optional: Implementation to delete workflow runs associated with the tag
-             // specific logic depends on identifying runs by branch/tag.
-             console.log("Workflow run cleanup skipped for safety.");
+      - name: Log Rollback
+        run: echo "Rolled back version ${{ inputs.version }}"

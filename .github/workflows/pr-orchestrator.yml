@@ -1,4 +1,4 @@
-name: PR Automation
+name: PR Orchestrator
 
 on:
   pull_request:

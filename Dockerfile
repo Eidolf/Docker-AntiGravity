@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y \
     wget \
     git \
     git-gui \
+    default-jre \
     sudo \
     python3 \
     python3-numpy \
