@@ -28,6 +28,7 @@ You can install additional packages at startup using environment variables:
 | `ADDITIONAL_PACKAGES` | Space-separated list of apt packages to install (e.g., `htop nano`) |
 | `INSTALL_ANDROID_TOOLS` | Set to `true` to install `adb`, `fastboot`, and platform tools |
 | `INSTALL_DEV_TOOLS` | Set to `true` to install `build-essential`, `cmake`, `gdb`, `clang` |
+| `INSTALL_LINTER_TOOLS` | Set to `true` to install `act`, `make` (apt), `poetry`, and `pre-commit` (pip) |
 | `INSTALL_WINDOWS_TOOLS` | Set to `true` to install `mingw-w64` for cross-compilation |
 
 ## Getting Started

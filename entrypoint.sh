@@ -27,6 +27,12 @@ if [ "$INSTALL_WINDOWS_TOOLS" = "true" ]; then
     PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL mingw-w64"
 fi
 
+if [ "$INSTALL_LINTER_TOOLS" = "true" ]; then
+    echo "Creating Linter tools installation list..."
+    # make is often needed for linter scripts (e.g. Makefile)
+    PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL make"
+fi
+
 if [ -n "$ADDITIONAL_PACKAGES" ]; then
     echo "Adding custom packages: $ADDITIONAL_PACKAGES"
     PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL $ADDITIONAL_PACKAGES"
@@ -38,6 +44,16 @@ if [ -n "$PACKAGES_TO_INSTALL" ]; then
     # shellcheck disable=SC2086
     apt-get install -y $PACKAGES_TO_INSTALL
     apt-get clean && rm -rf /var/lib/apt/lists/*
+fi
+
+if [ "$INSTALL_LINTER_TOOLS" = "true" ]; then
+    echo "Installing act (nektos/act)..."
+    curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
+    
+    echo "Installing Python based linter tools (poetry, pre-commit)..."
+    # Install poetry and pre-commit using the system python (3.13)
+    # --break-system-packages is required for recent pip versions on Ubuntu/Debian managed pythons
+    python3 -m pip install poetry pre-commit --break-system-packages
 fi
 
 # Fix permissions for /home/dev (in case of volume mount issues)
