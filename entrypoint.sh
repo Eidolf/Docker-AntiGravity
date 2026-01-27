@@ -45,6 +45,18 @@ echo "Fixing permissions for /home/dev..."
 chown -R dev:dev /home/dev
 
 
+# Configure Docker Storage Driver (Auto-detect environment)
+if [ ! -f /etc/docker/daemon.json ]; then
+    echo "Configuring Docker storage driver..."
+    if command -v fuse-overlayfs >/dev/null 2>&1; then
+        echo "Detected fuse-overlayfs, configuring as storage driver..."
+        sudo mkdir -p /etc/docker
+        echo '{"storage-driver": "fuse-overlayfs"}' | sudo tee /etc/docker/daemon.json > /dev/null
+    else
+        echo "fuse-overlayfs not found. Using default driver."
+    fi
+fi
+
 # Start Docker Daemon
 if [ -f /var/run/docker.pid ]; then
     sudo rm /var/run/docker.pid
