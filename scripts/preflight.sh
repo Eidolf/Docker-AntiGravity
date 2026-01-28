@@ -53,7 +53,9 @@ fi
 echo -e "\n${YELLOW}▶ Running GitHub Actions Workflow (Build Check)...${NC}"
 # Run specific job 'build-validation' from CI workflow
 # Note: This might take longer as it builds the Docker image
-if act -j build-validation --rm; then
+# Fix: Pass the host docker group ID to the container so it can access the socket
+DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)
+if act -j build-validation --rm --container-options "--group-add $DOCKER_GID"; then
     echo -e "${GREEN}✔ CI Build Check Job Passed${NC}"
 else
     echo -e "${RED}✘ CI Build Check Job Failed${NC}"
