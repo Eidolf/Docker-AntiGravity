@@ -41,12 +41,12 @@ fi
 # We need to handle the case where act asks to choose an image on first run.
 # We'll use the default medium image or non-interactive if configured.
 
-echo -e "\n${YELLOW}▶ Running GitHub Actions Workflow (Lint Job)...${NC}"
-# Run specific job 'lint-and-test' from CI workflow
-if act -j lint-and-test --rm; then
-    echo -e "${GREEN}✔ CI Lint Job Passed${NC}"
+echo -e "\n${YELLOW}▶ Running GitHub Actions Workflow (Python Lint Job)...${NC}"
+# Run specific job 'lint-python' from CI workflow
+if act -j lint-python --rm; then
+    echo -e "${GREEN}✔ CI Python Lint Job Passed${NC}"
 else
-    echo -e "${RED}✘ CI Lint Job Failed${NC}"
+    echo -e "${RED}✘ CI Python Lint Job Failed${NC}"
     FAILED=1
 fi
 

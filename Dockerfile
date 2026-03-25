@@ -3,7 +3,7 @@ FROM ubuntu:22.04
 # Avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Layer 1: Core System Tools & VNC Setup
+# Layer 1: Core System & VNC Setup
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         gnupg \
@@ -19,10 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         tigervnc-standalone-server \
         novnc \
         websockify \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Layer 2: Minimal XFCE Desktop
-RUN apt-get update && apt-get install -y --no-install-recommends \
+        # Layer 2 Components
         xfce4-session \
         xfce4-panel \
         xfce4-settings \
@@ -34,24 +31,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         xfce4-taskmanager \
         gnome-keyring \
         libsecret-1-0 \
-        dbus-x11 \
         hicolor-icon-theme \
         adwaita-icon-theme \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Layer 3: Node.js (v22.x) and Python 3.13
+# Layer 3: Node.js (v22.x) and Python (using 3.12 for better ARM64 wheel support)
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     add-apt-repository -y ppa:deadsnakes/ppa && \
     apt-get update && apt-get install -y --no-install-recommends \
         nodejs \
-        python3.13 \
-        python3.13-venv \
-        python3.13-dev \
-        python3-numpy \
+        python3.12 \
+        python3.12-venv \
+        python3.12-dev \
+        python3-pip \
         gosu \
-    && curl -fsSL https://bootstrap.pypa.io/get-pip.py | python3.13 - --break-system-packages \
-    && python3.13 -m pip install numpy --break-system-packages \
-    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.13 1 \
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1 \
+    && python3 -m pip install --upgrade pip --break-system-packages \
+    # Pre-install numpy if possible (3.12 has better ARM64 wheels)
+    && python3 -m pip install numpy --break-system-packages \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Layer 4: Browsers & Docker CLI
@@ -104,4 +101,8 @@ RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh /usr/local/bin/vnc_startup.sh 
 
 WORKDIR /home/dev
 EXPOSE 5901 6080
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD curl -f http://localhost:6080/ || exit 1
+
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

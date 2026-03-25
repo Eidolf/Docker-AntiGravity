@@ -139,6 +139,7 @@ jobs:
         run: |
           git config --global user.name "Antigravity Bot"
           git config --global user.email "bot@antigravity.dev"
+          git pull --rebase origin main
           python3 version_manager.py dev
           git add VERSION
           git commit -m "chore: bump to dev version [skip ci]"
