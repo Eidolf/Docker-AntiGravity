@@ -46,9 +46,12 @@ RUN add-apt-repository -y ppa:deadsnakes/ppa && \
 
 # Install Google Chrome Stable
 RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list && \
     apt-get update && apt-get install -y google-chrome-stable && \
-    sed -i 's/exec -a "$0" "$HERE\/chrome" "$@"/exec -a "$0" "$HERE\/chrome" --password-store=basic "$@"/' /opt/google/chrome/google-chrome && \
+    # Fix for Chrome on ARM/various environments
+    if [ -f /opt/google/chrome/google-chrome ]; then \
+        sed -i 's/exec -a "$0" "$HERE\/chrome" "$@"/exec -a "$0" "$HERE\/chrome" --password-store=basic "$@"/' /opt/google/chrome/google-chrome; \
+    fi && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Docker CLI
@@ -79,7 +82,8 @@ RUN mkdir -p /etc/apt/keyrings && \
 
 # Install LazyGit
 ENV LAZYGIT_VERSION=0.40.2
-RUN curl -Lo lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/download/v${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION}_Linux_x86_64.tar.gz" && \
+RUN ARCH=$(dpkg --print-architecture | sed 's/amd64/x86_64/') && \
+    curl -Lo lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/download/v${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION}_Linux_${ARCH}.tar.gz" && \
     tar xf lazygit.tar.gz lazygit && \
     install lazygit /usr/local/bin && \
     rm lazygit.tar.gz lazygit
