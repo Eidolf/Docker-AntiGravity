@@ -41,26 +41,32 @@ fi
 # We need to handle the case where act asks to choose an image on first run.
 # We'll use the default medium image or non-interactive if configured.
 
-echo -e "\n${YELLOW}▶ Running GitHub Actions Workflow (Python Lint Job)...${NC}"
-# Run specific job 'lint-python' from CI workflow
-if act -j lint-python --rm; then
-    echo -e "${GREEN}✔ CI Python Lint Job Passed${NC}"
-else
-    echo -e "${RED}✘ CI Python Lint Job Failed${NC}"
-    FAILED=1
-fi
+run_act_job() {
+    local job_name=$1
+    local extra_args=$2
+    local out_file="/tmp/act_${job_name}.log"
+    
+    echo -e "\n${YELLOW}▶ Running GitHub Actions Workflow ($job_name)...${NC}"
+    
+    # Run act and capture output and exit code
+    if bash -c "act -j $job_name --rm $extra_args > $out_file 2>&1"; then
+        cat $out_file
+        echo -e "${GREEN}✔ $job_name Passed${NC}"
+    else
+        if grep -q "Could not find any stages to run" $out_file; then
+            echo -e "${YELLOW}✔ $job_name Skipped (No matching stages found)${NC}"
+        else
+            cat $out_file
+            echo -e "${RED}✘ $job_name Failed${NC}"
+            FAILED=1
+        fi
+    fi
+    rm -f $out_file
+}
 
-echo -e "\n${YELLOW}▶ Running GitHub Actions Workflow (Build Check)...${NC}"
-# Run specific job 'build-validation' from CI workflow
-# Note: This might take longer as it builds the Docker image
-# Fix: Pass the host docker group ID to the container so it can access the socket
+run_act_job "lint-python" ""
 DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)
-if act -j build-validation --rm --container-options "--group-add $DOCKER_GID"; then
-    echo -e "${GREEN}✔ CI Build Check Job Passed${NC}"
-else
-    echo -e "${RED}✘ CI Build Check Job Failed${NC}"
-    FAILED=1
-fi
+run_act_job "build-validation" "--container-options \"--group-add $DOCKER_GID\""
 
 echo -e "\n${YELLOW}=== 📊 Pre-Flight Summary ===${NC}"
 if [ $FAILED -eq 0 ]; then

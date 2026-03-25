@@ -43,10 +43,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
         python3.12 \
         python3.12-venv \
         python3.12-dev \
-        python3-pip \
         gosu \
     && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1 \
-    && python3 -m pip install --upgrade pip --break-system-packages \
+    && curl -fsSL https://bootstrap.pypa.io/get-pip.py | python3.12 - --break-system-packages \
     # Pre-install numpy if possible (3.12 has better ARM64 wheels)
     && python3 -m pip install numpy --break-system-packages \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
