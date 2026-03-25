@@ -1,0 +1,33 @@
+# Example Docker Compose for Ubuntu ARM Server
+# Use this file to run the pre-built ARM image from the registry.
+
+name: antigravity
+
+services:
+  antigravity-desktop:
+    image: ghcr.io/eidolf/docker-antigravity:latest # The multi-arch image automatically pulls the ARM variant
+    container_name: antigravity-desktop
+    ports:
+      - "${HOST_WEB_PORT:-6080}:6080" # NoVNC web access
+      - "${HOST_VNC_PORT:-5901}:5901" # VNC direct access
+    shm_size: "2gb" # Crucial for Chrome stability on ARM systems
+    privileged: true
+    volumes:
+      - antigravity-home:/home/dev
+      - antigravity-workspace:/home/dev/workspace
+      - antigravity-docker-data:/var/lib/docker
+    networks:
+      - antigravity-network
+    restart: unless-stopped
+
+volumes:
+  antigravity-home:
+    name: antigravity-home
+  antigravity-workspace:
+    name: antigravity-workspace
+  antigravity-docker-data:
+    name: antigravity-docker-data
+
+networks:
+  antigravity-network:
+    name: antigravity-network
