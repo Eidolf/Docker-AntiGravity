@@ -3,119 +3,105 @@ FROM ubuntu:22.04
 # Avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install dependencies in a single layer to optimize multi-arch build speed
-RUN apt-get update && \
-    # Install common tools and XFCE desktop
-    apt-get install -y \
+# Layer 1: Core System Tools & VNC Setup
+RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         gnupg \
         lsb-release \
-        xfce4 \
-        xfce4-goodies \
-        tigervnc-standalone-server \
-        novnc \
-        websockify \
-        gnome-keyring \
-        libsecret-1-0 \
         curl \
         wget \
-        git \
-        git-gui \
-        default-jre \
         sudo \
-        python3 \
-        python3-numpy \
+        git \
         net-tools \
         dbus-x11 \
         software-properties-common \
         wmctrl \
-        gosu && \
-    apt-get purge -y xfce4-power-manager xfce4-screensaver light-locker && \
-    # Install Node.js LTS (v22.x)
-    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
-    apt-get install -y nodejs && \
-    # Install Python 3.13
+        tigervnc-standalone-server \
+        novnc \
+        websockify \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Layer 2: Minimal XFCE Desktop
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        xfce4-session \
+        xfce4-panel \
+        xfce4-settings \
+        xfwm4 \
+        xfdesktop4 \
+        xfce4-terminal \
+        xfce4-clipman-plugin \
+        xfce4-notifyd \
+        xfce4-taskmanager \
+        gnome-keyring \
+        libsecret-1-0 \
+        dbus-x11 \
+        hicolor-icon-theme \
+        adwaita-icon-theme \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Layer 3: Node.js (v22.x) and Python 3.13
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     add-apt-repository -y ppa:deadsnakes/ppa && \
-    apt-get update && \
-    apt-get install -y python3.13 python3.13-venv python3.13-dev && \
-    curl -fsSL https://bootstrap.pypa.io/get-pip.py | python3.13 - --break-system-packages && \
-    python3.13 -m pip install numpy --break-system-packages && \
-    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.13 1 && \
-    # Install Google Chrome (or Chromium on ARM)
-    ARCH=$(dpkg --print-architecture) && \
+    apt-get update && apt-get install -y --no-install-recommends \
+        nodejs \
+        python3.13 \
+        python3.13-venv \
+        python3.13-dev \
+        python3-numpy \
+        gosu \
+    && curl -fsSL https://bootstrap.pypa.io/get-pip.py | python3.13 - --break-system-packages \
+    && python3.13 -m pip install numpy --break-system-packages \
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.13 1 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Layer 4: Browsers & Docker CLI
+RUN ARCH=$(dpkg --print-architecture) && \
     if [ "$ARCH" = "amd64" ]; then \
         curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
         echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list && \
-        apt-get update && apt-get install -y google-chrome-stable && \
+        apt-get update && apt-get install -y --no-install-recommends google-chrome-stable && \
         if [ -f /opt/google/chrome/google-chrome ]; then \
             sed -i 's/exec -a "$0" "$HERE\/chrome" "$@"/exec -a "$0" "$HERE\/chrome" --password-store=basic "$@"/' /opt/google/chrome/google-chrome; \
         fi; \
     else \
-        apt-get update && apt-get install -y chromium-browser && \
+        apt-get update && apt-get install -y --no-install-recommends chromium-browser && \
         ln -s /usr/bin/chromium-browser /usr/bin/google-chrome; \
     fi && \
-    # Install Docker CLI
     install -m 0755 -d /etc/apt/keyrings && \
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
     chmod a+r /etc/apt/keyrings/docker.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
     apt-get update && \
-    apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin iptables fuse-overlayfs && \
-    # Install Google AntiGravity
-    curl -fsSL https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg | gpg --dearmor --yes -o /etc/apt/keyrings/antigravity-repo-key.gpg && \
-    echo "deb [signed-by=/etc/apt/keyrings/antigravity-repo-key.gpg] https://us-central1-apt.pkg.dev/projects/antigravity-auto-updater-dev/ antigravity-debian main" | tee /etc/apt/sources.list.d/antigravity.list > /dev/null && \
-    apt-get update && apt-get install -y antigravity && \
-    # Cleanup
+    apt-get install -y --no-install-recommends docker-ce docker-ce-cli containerd.io docker-compose-plugin iptables fuse-overlayfs && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Note: Antigravity manages its Chrome extension automatically.
-# If manual extension loading is needed, Chrome can be started with:
-#   google-chrome --load-extension=/opt/antigravity/chrome-extension
-# The previous ExtensionInstallForcelist policy was removed as it requires
-# a valid 32-character extension ID (a-p only) which must be generated from
-# the extension's public key.
-
-# Install LazyGit
+# Layer 5: AntiGravity & LazyGit
 ENV LAZYGIT_VERSION=0.40.2
-RUN ARCH=$(dpkg --print-architecture | sed 's/amd64/x86_64/') && \
-    curl -Lo lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/download/v${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION}_Linux_${ARCH}.tar.gz" && \
+RUN curl -fsSL https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg | gpg --dearmor --yes -o /etc/apt/keyrings/antigravity-repo-key.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/antigravity-repo-key.gpg] https://us-central1-apt.pkg.dev/projects/antigravity-auto-updater-dev/ antigravity-debian main" | tee /etc/apt/sources.list.d/antigravity.list > /dev/null && \
+    apt-get update && apt-get install -y --no-install-recommends antigravity && \
+    ARCH_LG=$(dpkg --print-architecture | sed 's/amd64/x86_64/') && \
+    curl -Lo lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/download/v${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION}_Linux_${ARCH_LG}.tar.gz" && \
     tar xf lazygit.tar.gz lazygit && \
     install lazygit /usr/local/bin && \
-    rm lazygit.tar.gz lazygit
+    rm lazygit.tar.gz lazygit && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user 'dev'
+# Final Setup: User, scripts, and permissions
 RUN useradd -m -s /bin/bash dev && \
     echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
-    usermod -aG docker dev
+    usermod -aG docker dev && \
+    ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html && \
+    mkdir -p /home/dev/.vnc
 
-# Set up VNC and NoVNC directories
-RUN ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
-
-# Copy startup scripts and fake proc files
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY vnc_startup.sh /usr/local/bin/vnc_startup.sh
 COPY fake_version /etc/fake_version
 COPY fake_osrelease /etc/fake_osrelease
+
 RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh /usr/local/bin/vnc_startup.sh && \
     chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/vnc_startup.sh
 
-# Switch to non-root user
-# Install gosu
-RUN set -eux; \
-    apt-get update; \
-    apt-get install -y gosu; \
-    rm -rf /var/lib/apt/lists/*; \
-    # verify that the binary works
-    gosu nobody true
-
-# Switch to non-root user (Moved to entrypoint logic)
-# USER dev
-# WORKDIR /home/devWORKDIR /home/dev
-
-# Create .vnc directory
-RUN mkdir -p /home/dev/.vnc
-
-# Expose VNC port (5901) and NoVNC port (6080)
+WORKDIR /home/dev
 EXPOSE 5901 6080
-
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
