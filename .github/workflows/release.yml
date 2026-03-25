@@ -18,8 +18,11 @@ permissions:
   packages: write
 
 jobs:
-  release:
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      repo_lower: ${{ steps.repo.outputs.lower }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,6 +36,10 @@ jobs:
       - name: Calculate Version
         id: version
         run: python3 version_manager.py ${{ inputs.release_type }}
+
+      - name: Lowercase Repository Name
+        id: repo
+        run: echo "lower=${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
 
       - name: Commit & Push Version Bump
         run: |
@@ -54,6 +61,24 @@ jobs:
           generate_release_notes: true
           prerelease: ${{ inputs.release_type != 'stable' }}
 
+  build:
+    needs: prepare
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            os: ubuntu-latest
+            platform: linux/amd64
+          - arch: arm64
+            os: ubuntu-24.04-arm
+            platform: linux/arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -61,31 +86,59 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Lowercase Repository Name
-        run: |
-          echo "REPO_LOWER=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
-          
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and Push Docker Image
+      - name: Build and Push Architecture-Specific Image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          platforms: linux/amd64,linux/arm64
-          tags: |
-            ghcr.io/${{ env.REPO_LOWER }}:${{ steps.version.outputs.version }}
-            ${{ inputs.release_type == 'stable' && format('ghcr.io/{0}:latest', env.REPO_LOWER) || '' }}
+          platforms: ${{ matrix.platform }}
+          tags: ghcr.io/${{ needs.prepare.outputs.repo_lower }}:${{ needs.prepare.outputs.version }}-${{ matrix.arch }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-            
-      - name: Bump to Dev Version
-        if: inputs.release_type != 'nightly'
+
+  merge:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Multi-Arch Manifest
         run: |
+          VERSION=${{ needs.prepare.outputs.version }}
+          REPO=ghcr.io/${{ needs.prepare.outputs.repo_lower }}
+          
+          docker buildx imagetools create -t ${REPO}:${VERSION} \
+            ${REPO}:${VERSION}-amd64 \
+            ${REPO}:${VERSION}-arm64
+            
+          if [ "${{ github.event.inputs.release_type }}" == "stable" ]; then
+            docker buildx imagetools create -t ${REPO}:latest \
+              ${REPO}:${VERSION}-amd64 \
+              ${REPO}:${VERSION}-arm64
+          fi
+
+  post-release:
+    needs: [prepare, merge]
+    if: inputs.release_type != 'nightly'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Bump to Dev Version
+        run: |
+          git config --global user.name "Antigravity Bot"
+          git config --global user.email "bot@antigravity.dev"
           python3 version_manager.py dev
           git add VERSION
           git commit -m "chore: bump to dev version [skip ci]"
