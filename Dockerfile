@@ -19,6 +19,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         tigervnc-standalone-server \
         tigervnc-tools \
         novnc \
+        websockify \
+        python3-numpy \
         # Layer 2 Components
         xfce4-session \
         xfce4-panel \
