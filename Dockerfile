@@ -87,7 +87,10 @@ RUN curl -fsSL https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg | gpg --
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Final Setup: User, scripts, and permissions
-RUN groupadd -g 1000 dev && \
+# Ubuntu 24.04 has a default 'ubuntu' user (UID 1000) that we must remove to reuse UID 1000 for 'dev'
+RUN (id -u ubuntu >/dev/null 2>&1 && userdel -f ubuntu || true) && \
+    (getent group ubuntu >/dev/null 2>&1 && groupdel ubuntu || true) && \
+    groupadd -g 1000 dev && \
     useradd -u 1000 -g dev -m -s /bin/bash dev && \
     echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
     usermod -aG docker dev && \
