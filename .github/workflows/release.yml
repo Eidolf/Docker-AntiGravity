@@ -93,6 +93,8 @@ jobs:
           push: true
           platforms: ${{ matrix.platform }}
           tags: ghcr.io/${{ needs.prepare.outputs.repo_lower }}:${{ needs.prepare.outputs.version }}-${{ matrix.arch }}
+          build-args: |
+             CACHE_BUST=${{ github.run_id }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

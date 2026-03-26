@@ -45,11 +45,15 @@ run_act_job() {
     local job_name=$1
     local extra_args=$2
     local out_file="/tmp/act_${job_name}.log"
+    local event_file="/tmp/act_event.json"
     
     echo -e "\n${YELLOW}▶ Running GitHub Actions Workflow ($job_name)...${NC}"
     
+    # Create dummy event payload to satisfy plugins like dorny/paths-filter
+    echo '{"repository": {"default_branch": "main"}}' > "$event_file"
+    
     # Run act and capture output and exit code
-    if bash -c "act -j $job_name --rm $extra_args > $out_file 2>&1"; then
+    if bash -c "act -j $job_name -e $event_file --rm $extra_args > $out_file 2>&1"; then
         cat $out_file
         echo -e "${GREEN}✔ $job_name Passed${NC}"
     else
