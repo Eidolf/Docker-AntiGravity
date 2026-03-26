@@ -123,9 +123,9 @@ if [ -n "$VNC_PASSWORD" ]; then
     chmod 600 /home/dev/.vnc/passwd_clear
     chown dev:dev /home/dev/.vnc/passwd_clear
 
-    echo "$VNC_PASSWORD" | vncpasswd -f > /tmp/vncpasswd
-    chmod 600 /tmp/vncpasswd
-    chown dev:dev /tmp/vncpasswd
+    echo "$VNC_PASSWORD" | vncpasswd -f > /home/dev/.vnc/passwd
+    chmod 600 /home/dev/.vnc/passwd
+    chown dev:dev /home/dev/.vnc/passwd
 
     echo "dev:$VNC_PASSWORD" | chpasswd
     chown dev:dev /home/dev/.vnc
@@ -140,7 +140,7 @@ fi
 
 # Start VNC Server as 'dev' user
 log "Starting VNC Server..."
-gosu dev vncserver :1 -geometry 1920x1080 -depth 24 -localhost no -SecurityTypes VncAuth,TLSVnc -rfbauth /tmp/vncpasswd
+gosu dev vncserver :1 -geometry 1920x1080 -depth 24 -localhost no -SecurityTypes VncAuth,TLSVnc
 
 # Start NoVNC Proxy
 log "Starting NoVNC/Websockify..."
