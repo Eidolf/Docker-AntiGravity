@@ -157,5 +157,11 @@ fi
 echo "=============================================="
 echo ""
 
+# Locate websockify dynamically as pip installation path varies
+WEBSOCKIFY_CMD=$(command -v websockify || echo "/usr/local/bin/websockify")
+if [ ! -x "$WEBSOCKIFY_CMD" ]; then
+    WEBSOCKIFY_CMD="/home/dev/.local/bin/websockify"
+fi
+
 # Handover to websockify directly (Ubuntu 24.04 novnc package lacks launch.sh)
-exec gosu dev /usr/local/bin/websockify --web /usr/share/novnc/ 6080 localhost:5901
+exec gosu dev "$WEBSOCKIFY_CMD" --web /usr/share/novnc/ 6080 localhost:5901
