@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         software-properties-common \
         wmctrl \
         tigervnc-standalone-server \
+        tigervnc-tools \
         novnc \
         websockify \
         # Layer 2 Components
