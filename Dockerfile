@@ -20,7 +20,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         tigervnc-tools \
         novnc \
         websockify \
-        python3-numpy \
         # Layer 2 Components
         xfce4-session \
         xfce4-panel \
@@ -49,7 +48,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && \
         gosu \
     && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.14 1 \
     && curl -fsSL https://bootstrap.pypa.io/get-pip.py | python3.14 - --break-system-packages \
-    && python3 -m pip install websockify numpy --break-system-packages \
+    && python3 -m pip install --ignore-installed websockify numpy --break-system-packages \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Layer 4: Browsers & Docker CLI
