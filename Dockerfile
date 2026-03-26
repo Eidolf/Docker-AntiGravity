@@ -87,7 +87,8 @@ RUN curl -fsSL https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg | gpg --
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Final Setup: User, scripts, and permissions
-RUN useradd -m -s /bin/bash dev && \
+RUN groupadd -g 1000 dev && \
+    useradd -u 1000 -g dev -m -s /bin/bash dev && \
     echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
     usermod -aG docker dev && \
     ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html && \

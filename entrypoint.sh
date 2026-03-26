@@ -67,11 +67,9 @@ if [ "$INSTALL_LINTER_TOOLS" = "true" ]; then
     ) || log "Warning: Some linter tools failed to install."
 fi
 
-# Fix permissions carefully to avoid performance issues with large volume mounts
-log "Ensuring correct permissions for essential directories..."
-chown dev:dev /home/dev || log "Warning: chown /home/dev failed"
-[ -d /home/dev/.vnc ] && chown -R dev:dev /home/dev/.vnc || log "Warning: chown .vnc failed"
-[ -d /home/dev/.config ] && chown -R dev:dev /home/dev/.config || true
+# Fix permissions carefully to ensure user has full control over their home directory
+log "Ensuring correct permissions for /home/dev (recursive)..."
+chown -R dev:dev /home/dev || log "Warning: chown -R /home/dev failed"
 
 # Configure Docker Storage Driver
 if [ ! -f /etc/docker/daemon.json ]; then
@@ -154,5 +152,5 @@ fi
 echo "=============================================="
 echo ""
 
-# Handover to websockify
-exec gosu dev /usr/share/novnc/utils/launch.sh --vnc localhost:5901 --listen 6080
+# Handover to websockify directly (Ubuntu 24.04 novnc package lacks launch.sh)
+exec gosu dev websockify --web /usr/share/novnc/ 6080 localhost:5901
