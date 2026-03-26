@@ -128,6 +128,7 @@ if [ -n "$VNC_PASSWORD" ]; then
     chown dev:dev /tmp/vncpasswd
 
     echo "dev:$VNC_PASSWORD" | chpasswd
+    chown dev:dev /home/dev/.vnc
 fi
 
 export VNC_PASSWORD
@@ -139,7 +140,7 @@ fi
 
 # Start VNC Server as 'dev' user
 log "Starting VNC Server..."
-gosu dev vncserver :1 -geometry 1920x1080 -depth 24 -localhost no -rfbauth /tmp/vncpasswd
+gosu dev vncserver :1 -geometry 1920x1080 -depth 24 -localhost no -SecurityTypes VncAuth,TLSVnc -rfbauth /tmp/vncpasswd
 
 # Start NoVNC Proxy
 log "Starting NoVNC/Websockify..."
