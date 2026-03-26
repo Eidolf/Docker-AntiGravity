@@ -34,6 +34,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         hicolor-icon-theme \
         adwaita-icon-theme \
         xfce4-appfinder \
+    && apt-get purge -y websockify python3-websockify python3-numpy \
+    && apt-get autoremove -y \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Layer 3: Node.js (v24.x) and Python (using 3.14 for latest support)
