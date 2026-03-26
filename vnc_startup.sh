@@ -3,6 +3,8 @@
 # For TigerVNC, the default xstartup usually works or we can define it.
 
 # Ensure this is used as the xstartup
+export DISPLAY=:1
+export XAUTHORITY=$HOME/.Xauthority
 unset SESSION_MANAGER
 unset DBUS_SESSION_BUS_ADDRESS
 

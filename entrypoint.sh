@@ -105,6 +105,11 @@ fi
 # Desktop Environment Setup
 log "Cleaning up old locks..."
 rm -rf /tmp/.X*-lock /tmp/.X11-unix /home/dev/.config/google-chrome/SingletonLock
+# Only remove the LOCK files, not the authority file itself if it exists
+rm -f /home/dev/.Xauthority-* /home/dev/.ICEauthority-*
+
+export DISPLAY=:1
+export XAUTHORITY=/home/dev/.Xauthority
 
 # VNC Password Logic
 if [ -z "$VNC_PASSWORD" ]; then

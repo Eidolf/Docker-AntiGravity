@@ -45,11 +45,10 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && \
         python3.14 \
         python3.14-venv \
         python3.14-dev \
+        python3-numpy \
         gosu \
     && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.14 1 \
     && curl -fsSL https://bootstrap.pypa.io/get-pip.py | python3.14 - --break-system-packages \
-    # Pre-install numpy if possible (3.14 wheels should be available)
-    && python3 -m pip install numpy --break-system-packages \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Layer 4: Browsers & Docker CLI
