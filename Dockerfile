@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # Avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
@@ -34,20 +34,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libsecret-1-0 \
         hicolor-icon-theme \
         adwaita-icon-theme \
+        xfce4-appfinder \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Layer 3: Node.js (v22.x) and Python (using 3.12 for better ARM64 wheel support)
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+# Layer 3: Node.js (v24.x) and Python (using 3.14 for latest support)
+RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && \
     add-apt-repository -y ppa:deadsnakes/ppa && \
     apt-get update && apt-get install -y --no-install-recommends \
         nodejs \
-        python3.12 \
-        python3.12-venv \
-        python3.12-dev \
+        python3.14 \
+        python3.14-venv \
+        python3.14-dev \
         gosu \
-    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1 \
-    && curl -fsSL https://bootstrap.pypa.io/get-pip.py | python3.12 - --break-system-packages \
-    # Pre-install numpy if possible (3.12 has better ARM64 wheels)
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.14 1 \
+    && curl -fsSL https://bootstrap.pypa.io/get-pip.py | python3.14 - --break-system-packages \
+    # Pre-install numpy if possible (3.14 wheels should be available)
     && python3 -m pip install numpy --break-system-packages \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
