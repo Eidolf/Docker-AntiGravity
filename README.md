@@ -31,6 +31,18 @@ You can install additional packages at startup using environment variables:
 | `INSTALL_LINTER_TOOLS` | Set to `true` to install `act`, `make` (apt), `poetry`, and `pre-commit` (pip) |
 | `INSTALL_WINDOWS_TOOLS` | Set to `true` to install `mingw-w64` for cross-compilation |
 
+## Login Credentials
+
+- **Username**: `dev`
+- **Password**: 
+    - **Default/Auto-generated**: The password is randomly generated at startup and printed in the container logs. 
+    - **Custom**: You can set a custom password by defining the `VNC_PASSWORD` environment variable.
+
+To see the auto-generated password, check the container logs:
+```bash
+docker logs antigravity | grep "Password:"
+```
+
 ## Getting Started
 
 ### Quick Start with Portainer / Docker Compose
