@@ -158,4 +158,4 @@ echo "=============================================="
 echo ""
 
 # Handover to websockify directly (Ubuntu 24.04 novnc package lacks launch.sh)
-exec gosu dev websockify --web /usr/share/novnc/ 6080 localhost:5901
+exec gosu dev /usr/local/bin/websockify --web /usr/share/novnc/ 6080 localhost:5901
