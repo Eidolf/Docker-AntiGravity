@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         lsb-release \
         curl \
         wget \
+        jq \
         sudo \
         git \
         net-tools \
@@ -95,6 +96,12 @@ RUN (id -u ubuntu >/dev/null 2>&1 && userdel -f ubuntu || true) && \
     usermod -aG docker dev && \
     ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html && \
     mkdir -p /home/dev/.vnc
+
+# Layer 6: Claude Code CLI
+USER dev
+WORKDIR /home/dev
+RUN curl -fsSL https://claude.ai/install.sh | bash
+USER root
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY vnc_startup.sh /usr/local/bin/vnc_startup.sh
