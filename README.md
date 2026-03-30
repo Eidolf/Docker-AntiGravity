@@ -35,7 +35,7 @@ You can install additional packages at startup using environment variables:
 
 - **Username**: `dev`
 - **Password**: 
-    - **Default/Auto-generated**: The password is randomly generated at startup and printed in the container logs. 
+    - **Default/Auto-generated**: The password is randomly generated at first startup, printed in the container logs and saved for future sessions.
     - **Custom**: You can set a custom password by defining the `VNC_PASSWORD` environment variable.
 
 To see the auto-generated password, check the container logs:
