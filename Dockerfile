@@ -63,7 +63,9 @@ RUN ARCH=$(dpkg --print-architecture) && \
         fi; \
         ln -sf /usr/bin/google-chrome-stable /usr/local/bin/google-chrome; \
     else \
-        (for i in 1 2 3; do add-apt-repository -y ppa:xtradeb/apps && break || sleep 5; done) && \
+        mkdir -p /etc/apt/keyrings && \
+        (for i in 1 2 3; do curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x82BB6851C64F6880&options=mr" | gpg --dearmor -o /etc/apt/keyrings/xtradeb.gpg && break || sleep 5; done) && \
+        echo "deb [signed-by=/etc/apt/keyrings/xtradeb.gpg] http://ppa.launchpad.net/xtradeb/apps/ubuntu noble main" | tee /etc/apt/sources.list.d/xtradeb-apps.list > /dev/null && \
         (for i in 1 2 3; do apt-get update && apt-get install -y --no-install-recommends chromium && break || sleep 5; done) && \
         printf '#!/bin/bash\nexec /usr/bin/chromium --no-sandbox --test-type --disable-dev-shm-usage --no-first-run --no-default-browser-check "$@"' > /usr/local/bin/google-chrome && \
         chmod +x /usr/local/bin/google-chrome; \
