@@ -63,8 +63,8 @@ RUN ARCH=$(dpkg --print-architecture) && \
         fi; \
         ln -sf /usr/bin/google-chrome-stable /usr/local/bin/google-chrome; \
     else \
-        add-apt-repository -y ppa:xtradeb/apps && \
-        apt-get update && apt-get install -y --no-install-recommends chromium && \
+        (for i in 1 2 3; do add-apt-repository -y ppa:xtradeb/apps && break || sleep 5; done) && \
+        (for i in 1 2 3; do apt-get update && apt-get install -y --no-install-recommends chromium && break || sleep 5; done) && \
         printf '#!/bin/bash\nexec /usr/bin/chromium --no-sandbox --test-type --disable-dev-shm-usage --no-first-run --no-default-browser-check "$@"' > /usr/local/bin/google-chrome && \
         chmod +x /usr/local/bin/google-chrome; \
     fi && \
