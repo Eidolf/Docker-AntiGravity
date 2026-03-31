@@ -61,10 +61,16 @@ RUN ARCH=$(dpkg --print-architecture) && \
         if [ -f /opt/google/chrome/google-chrome ]; then \
             sed -i 's/exec -a "$0" "$HERE\/chrome" "$@"/exec -a "$0" "$HERE\/chrome" --password-store=basic "$@"/' /opt/google/chrome/google-chrome; \
         fi; \
+        ln -sf /usr/bin/google-chrome-stable /usr/local/bin/google-chrome; \
     else \
-        apt-get update && apt-get install -y --no-install-recommends chromium-browser && \
-        ln -s /usr/bin/chromium-browser /usr/bin/google-chrome; \
+        add-apt-repository -y ppa:xtradeb/apps && \
+        apt-get update && apt-get install -y --no-install-recommends chromium && \
+        printf '#!/bin/bash\nexec /usr/bin/chromium --no-sandbox --test-type --disable-dev-shm-usage --no-first-run --no-default-browser-check "$@"' > /usr/local/bin/google-chrome && \
+        chmod +x /usr/local/bin/google-chrome; \
     fi && \
+    ln -sf /usr/local/bin/google-chrome /usr/local/bin/google-chrome-stable && \
+    update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/local/bin/google-chrome 100 && \
+    update-alternatives --install /usr/bin/gnome-www-browser gnome-www-browser /usr/local/bin/google-chrome 100 && \
     install -m 0755 -d /etc/apt/keyrings && \
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
     chmod a+r /etc/apt/keyrings/docker.gpg && \
