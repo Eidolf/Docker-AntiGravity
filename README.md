@@ -7,17 +7,19 @@ A lightweight, web-accessible Ubuntu desktop environment in a Docker container.
 It features XFCE4, Google Chrome, and standard Git tools, accessible via your browser using NoVNC.
 
 ## Features
-- **OS**: Ubuntu 22.04 LTS (Jammy Jellyfish).
+- **OS**: Ubuntu 24.04 LTS (Noble Numbat).
 - **Desktop**: XFCE4 (Lightweight and fast).
 - **Remote Access**: NoVNC (Browser-based) and TigerVNC.
 - **Tools**:
+    - **Google Antigravity v2.0**: Standalone visual command center for multi-agent orchestration.
+    - **Google Antigravity IDE**: Editor-first agentic workspace based on VS Code.
     - **Browser**: Google Chrome Stable.
     - **Git**: Built-in CLI `git`.
     - **Git GUI**: `git-gui` (Simple, native graphical interface).
     - **LazyGit**: Terminal-based UI for git (run `lazygit` in terminal).
     - **Docker**: Isolated Docker Daemon (Docker-in-Docker). Creates its own containers, separate from host.
-    - **Node.js**: LTS version (v22.x).
-    - **Python**: Version 3.13.
+    - **Node.js**: Version v24.x.
+    - **Python**: Version 3.14.
 - **Persistence**: User settings and home directory are persisted via Docker volume.
 
 ## Dynamic Package Installation

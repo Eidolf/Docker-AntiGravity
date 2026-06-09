@@ -82,18 +82,83 @@ RUN ARCH=$(dpkg --print-architecture) && \
     apt-get install -y --no-install-recommends docker-ce docker-ce-cli containerd.io docker-compose-plugin iptables fuse-overlayfs && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Layer 5: AntiGravity & LazyGit
+# Layer 5: AntiGravity v2.0 (Desktop & IDE) & LazyGit
 ENV LAZYGIT_VERSION=0.40.2
-ARG CACHE_BUST=1
-RUN curl -fsSL https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg | gpg --dearmor --yes -o /etc/apt/keyrings/antigravity-repo-key.gpg && \
-    echo "deb [signed-by=/etc/apt/keyrings/antigravity-repo-key.gpg] https://us-central1-apt.pkg.dev/projects/antigravity-auto-updater-dev/ antigravity-debian main" | tee /etc/apt/sources.list.d/antigravity.list > /dev/null && \
-    apt-get update && apt-get install -y --no-install-recommends antigravity && \
-    ARCH_LG=$(dpkg --print-architecture | sed 's/amd64/x86_64/') && \
+ENV ANTIGRAVITY_HUB_VERSION=2.0.11
+ENV ANTIGRAVITY_HUB_BUILD=6560309696135168
+ENV ANTIGRAVITY_IDE_VERSION=2.0.4
+ENV ANTIGRAVITY_IDE_BUILD=6381998290370560
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        alsa-utils \
+        libasound2t64 \
+        libatk-bridge2.0-0 \
+        libatk1.0-0 \
+        libatspi2.0-0 \
+        libcairo2 \
+        libcups2 \
+        libdbus-1-3 \
+        libexpat1 \
+        libgbm1 \
+        libgtk-3-0 \
+        libnspr4 \
+        libnss3 \
+        libpango-1.0-0 \
+        libx11-6 \
+        libxcb1 \
+        libxcomposite1 \
+        libxdamage1 \
+        libxext6 \
+        libxfixes3 \
+        libxkbcommon0 \
+        libxkbfile1 \
+        libxrandr2 \
+        libsecret-1-0 \
+        libwebkit2gtk-4.1-0 \
+        libsoup-3.0-0 \
+        xdg-utils \
+    && ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "amd64" ]; then \
+        ARCH_SUB="linux-x64"; \
+        ARCH_LG="x86_64"; \
+    else \
+        ARCH_SUB="linux-arm"; \
+        ARCH_LG="arm64"; \
+    fi && \
+    # 1. Install LazyGit
     curl -Lo lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/download/v${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION}_Linux_${ARCH_LG}.tar.gz" && \
     tar xf lazygit.tar.gz lazygit && \
     install lazygit /usr/local/bin && \
     rm lazygit.tar.gz lazygit && \
+    # 2. Download and install Antigravity Hub/Desktop v2.0
+    curl -fsSL -o /tmp/antigravity-hub.tar.gz "https://storage.googleapis.com/antigravity-public/antigravity-hub/${ANTIGRAVITY_HUB_VERSION}-${ANTIGRAVITY_HUB_BUILD}/${ARCH_SUB}/Antigravity.tar.gz" && \
+    mkdir -p /opt/antigravity-desktop && \
+    tar -xzf /tmp/antigravity-hub.tar.gz -C /opt/antigravity-desktop --strip-components=1 && \
+    rm /tmp/antigravity-hub.tar.gz && \
+    ln -sf /opt/antigravity-desktop/antigravity /usr/local/bin/antigravity && \
+    # 3. Download and install Antigravity IDE v2.0
+    curl -fsSL -o /tmp/antigravity-ide.tar.gz "https://dl.google.com/release2/j0qc3/antigravity/stable/${ANTIGRAVITY_IDE_VERSION}-${ANTIGRAVITY_IDE_BUILD}/${ARCH_SUB}/Antigravity%20IDE.tar.gz" && \
+    mkdir -p /opt/antigravity-ide && \
+    tar -xzf /tmp/antigravity-ide.tar.gz -C /opt/antigravity-ide --strip-components=1 && \
+    rm /tmp/antigravity-ide.tar.gz && \
+    # 4. Create wrapper script for Antigravity IDE
+    printf '#!/bin/bash\nXDG_CONFIG_HOME=${XDG_CONFIG_HOME:-~/.config}\nif [[ -f $XDG_CONFIG_HOME/antigravity-ide-flags.conf ]]; then\n    ANTIGRAVITY_IDE_USER_FLAGS="$(sed '\''s/#.*//'\'' $XDG_CONFIG_HOME/antigravity-ide-flags.conf | tr '\''\\n'\'' '\'' '\'')"\nfi\nexec /opt/antigravity-ide/bin/antigravity-ide "$@" $ANTIGRAVITY_IDE_USER_FLAGS\n' > /usr/local/bin/antigravity-ide && \
+    chmod +x /usr/local/bin/antigravity-ide && \
+    # 5. Download and install icons and desktop files
+    curl -fsSL -o /usr/share/pixmaps/antigravity.png "https://aur.archlinux.org/cgit/aur.git/plain/antigravity.png?h=antigravity" && \
+    if [ -f /opt/antigravity-ide/resources/app/resources/linux/code.png ]; then \
+        cp /opt/antigravity-ide/resources/app/resources/linux/code.png /usr/share/pixmaps/antigravity-ide.png; \
+    fi && \
+    # 6. Create Desktop entries
+    # Antigravity Desktop
+    printf '[Desktop Entry]\nName=Antigravity\nComment=Experience liftoff\nGenericName=Agentic Platform\nExec=/usr/local/bin/antigravity %%U\nIcon=antigravity\nType=Application\nStartupNotify=false\nStartupWMClass=Antigravity\nCategories=Development;Utility;\n' > /usr/share/applications/antigravity.desktop && \
+    # Antigravity IDE
+    printf '[Desktop Entry]\nName=Antigravity IDE\nComment=Experience liftoff\nGenericName=Text Editor\nExec=/usr/local/bin/antigravity-ide %%F\nIcon=antigravity-ide\nType=Application\nStartupNotify=false\nStartupWMClass=antigravity-ide\nCategories=TextEditor;Development;IDE;\nMimeType=application/x-antigravity-ide-workspace;\nActions=new-empty-window;\nKeywords=vscode;\n\n[Desktop Action new-empty-window]\nName=New Empty Window\nExec=/usr/local/bin/antigravity-ide --new-window %%F\nIcon=antigravity-ide\n' > /usr/share/applications/antigravity-ide.desktop && \
+    # Antigravity IDE URL Handler
+    printf '[Desktop Entry]\nName=Antigravity IDE - URL Handler\nComment=Experience liftoff\nGenericName=Text Editor\nExec=/usr/local/bin/antigravity-ide --open-url %%U\nIcon=antigravity-ide\nType=Application\nNoDisplay=true\nStartupNotify=true\nCategories=Utility;TextEditor;Development;IDE;\nMimeType=x-scheme-handler/antigravity-ide;\nKeywords=vscode;\n' > /usr/share/applications/antigravity-ide-url-handler.desktop && \
+    # Clean up APT
     apt-get clean && rm -rf /var/lib/apt/lists/*
+
 
 # Final Setup: User, scripts, and permissions
 # Ubuntu 24.04 has a default 'ubuntu' user (UID 1000) that we must remove to reuse UID 1000 for 'dev'
@@ -104,7 +169,12 @@ RUN (id -u ubuntu >/dev/null 2>&1 && userdel -f ubuntu || true) && \
     echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
     usermod -aG docker dev && \
     ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html && \
-    mkdir -p /home/dev/.vnc
+    mkdir -p /home/dev/.vnc && \
+    mkdir -p /home/dev/Desktop && \
+    cp /usr/share/applications/antigravity.desktop /home/dev/Desktop/ && \
+    cp /usr/share/applications/antigravity-ide.desktop /home/dev/Desktop/ && \
+    chmod +x /home/dev/Desktop/*.desktop && \
+    chown -R dev:dev /home/dev
 
 # Layer 6: Claude Code CLI
 USER dev
