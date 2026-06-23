@@ -141,6 +141,18 @@ if [ ! -f /home/dev/.vnc/xstartup ]; then
     ln -s /usr/local/bin/vnc_startup.sh /home/dev/.vnc/xstartup
 fi
 
+# Ensure persistent desktop shortcuts are up-to-date and point to the correct paths
+if [ -d /home/dev/Desktop ]; then
+    log "Updating desktop entry shortcuts..."
+    cp -f /usr/share/applications/antigravity.desktop /home/dev/Desktop/ 2>/dev/null || true
+    cp -f /usr/share/applications/antigravity-ide.desktop /home/dev/Desktop/ 2>/dev/null || true
+    if [ -f /usr/share/applications/update-antigravity.desktop ]; then
+        cp -f /usr/share/applications/update-antigravity.desktop /home/dev/Desktop/ 2>/dev/null || true
+    fi
+    chmod +x /home/dev/Desktop/*.desktop 2>/dev/null || true
+    chown -R dev:dev /home/dev/Desktop 2>/dev/null || true
+fi
+
 # Start VNC Server as 'dev' user
 log "Starting VNC Server..."
 gosu dev vncserver :1 -geometry 1920x1080 -depth 24 -localhost no -SecurityTypes VncAuth,TLSVnc

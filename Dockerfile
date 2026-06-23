@@ -84,10 +84,10 @@ RUN ARCH=$(dpkg --print-architecture) && \
 
 # Layer 5: AntiGravity v2.0 (Desktop & IDE) & LazyGit
 ENV LAZYGIT_VERSION=0.40.2
-ENV ANTIGRAVITY_HUB_VERSION=2.0.11
-ENV ANTIGRAVITY_HUB_BUILD=6560309696135168
-ENV ANTIGRAVITY_IDE_VERSION=2.0.4
-ENV ANTIGRAVITY_IDE_BUILD=6381998290370560
+ENV ANTIGRAVITY_HUB_VERSION=2.1.4
+ENV ANTIGRAVITY_HUB_BUILD=6481382726303744
+ENV ANTIGRAVITY_IDE_VERSION=2.1.1
+ENV ANTIGRAVITY_IDE_BUILD=6123990880747520
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         alsa-utils \
@@ -156,6 +156,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     printf '[Desktop Entry]\nName=Antigravity IDE\nComment=Experience liftoff\nGenericName=Text Editor\nExec=/usr/local/bin/antigravity-ide %%F\nIcon=antigravity-ide\nType=Application\nStartupNotify=false\nStartupWMClass=antigravity-ide\nCategories=TextEditor;Development;IDE;\nMimeType=application/x-antigravity-ide-workspace;\nActions=new-empty-window;\nKeywords=vscode;\n\n[Desktop Action new-empty-window]\nName=New Empty Window\nExec=/usr/local/bin/antigravity-ide --new-window %%F\nIcon=antigravity-ide\n' > /usr/share/applications/antigravity-ide.desktop && \
     # Antigravity IDE URL Handler
     printf '[Desktop Entry]\nName=Antigravity IDE - URL Handler\nComment=Experience liftoff\nGenericName=Text Editor\nExec=/usr/local/bin/antigravity-ide --open-url %%U\nIcon=antigravity-ide\nType=Application\nNoDisplay=true\nStartupNotify=true\nCategories=Utility;TextEditor;Development;IDE;\nMimeType=x-scheme-handler/antigravity-ide;\nKeywords=vscode;\n' > /usr/share/applications/antigravity-ide-url-handler.desktop && \
+    # 7. Create In-Place Updater script and Desktop shortcut
+    printf '#!/bin/bash\nset -e\necho "Checking architecture..."\nARCH=$(dpkg --print-architecture)\nif [ "$ARCH" = "amd64" ]; then\n    ARCH_SUB="linux-x64"\nelse\n    ARCH_SUB="linux-arm"\nfi\necho "Fetching latest versions from Homebrew Casks..."\nVERSIONS=$(python3 -c '\''\nimport urllib.request, re\ndef get_cask_ver(cask):\n    try:\n        url = f"https://raw.githubusercontent.com/Homebrew/homebrew-cask/main/Casks/a/{cask}.rb"\n        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})\n        with urllib.request.urlopen(req) as response:\n            content = response.read().decode("utf-8")\n            match = re.search(r"version\\s+\\"([^\\"]+)\\"", content)\n            if match:\n                parts = match.group(1).split(",")\n                if len(parts) == 2:\n                    return parts[0], parts[1]\n    except Exception as e:\n        print(f"Error fetching {cask}: {e}")\n    return None, None\nhub_v, hub_b = get_cask_ver("antigravity")\nide_v, ide_b = get_cask_ver("antigravity-ide")\nprint(f"{hub_v}|{hub_b}|{ide_v}|{ide_b}")\n'\'')\nHUB_VER=$(echo "$VERSIONS" | cut -d"|" -f1)\nHUB_BUILD=$(echo "$VERSIONS" | cut -d"|" -f2)\nIDE_VER=$(echo "$VERSIONS" | cut -d"|" -f3)\nIDE_BUILD=$(echo "$VERSIONS" | cut -d"|" -f4)\nif [ -z "$HUB_VER" ] || [ -z "$HUB_BUILD" ] || [ -z "$IDE_VER" ] || [ -z "$IDE_BUILD" ]; then\n    echo "Error: Failed to fetch version info. Please enter versions manually:"\n    read -p "Antigravity Hub Version (e.g. 2.1.4): " HUB_VER\n    read -p "Antigravity Hub Build ID (e.g. 6481382726303744): " HUB_BUILD\n    read -p "Antigravity IDE Version (e.g. 2.1.1): " IDE_VER\n    read -p "Antigravity IDE Build ID (e.g. 6123990880747520): " IDE_BUILD\nfi\necho "Targeting versions:"\necho "  Antigravity: $HUB_VER (Build $HUB_BUILD)"\necho "  Antigravity IDE: $IDE_VER (Build $IDE_BUILD)"\necho "Updating Antigravity..."\ncurl -fsSL -o /tmp/antigravity-hub.tar.gz "https://storage.googleapis.com/antigravity-public/antigravity-hub/${HUB_VER}-${HUB_BUILD}/${ARCH_SUB}/Antigravity.tar.gz"\nsudo rm -rf /opt/antigravity-desktop/*\nsudo tar -xzf /tmp/antigravity-hub.tar.gz -C /opt/antigravity-desktop --strip-components=1\nrm /tmp/antigravity-hub.tar.gz\nsudo ln -sf /opt/antigravity-desktop/antigravity /usr/local/bin/antigravity\necho "Updating Antigravity IDE..."\ncurl -fsSL -o /tmp/antigravity-ide.tar.gz "https://dl.google.com/release2/j0qc3/antigravity/stable/${IDE_VER}-${IDE_BUILD}/${ARCH_SUB}/Antigravity%%20IDE.tar.gz"\nsudo rm -rf /opt/antigravity-ide/*\nsudo tar -xzf /tmp/antigravity-ide.tar.gz -C /opt/antigravity-ide --strip-components=1\nrm /tmp/antigravity-ide.tar.gz\necho "Update complete! Please restart any running instances of Antigravity or Antigravity IDE."\nread -p "Press Enter to exit..."\n' > /usr/local/bin/update-in-place && \
+    chmod +x /usr/local/bin/update-in-place && \
+    printf '[Desktop Entry]\nName=Update Antigravity\nComment=Update Antigravity and Antigravity IDE in-place\nExec=xfce4-terminal -e /usr/local/bin/update-in-place\nIcon=system-software-update\nType=Application\nTerminal=false\nCategories=System;Utility;\n' > /usr/share/applications/update-antigravity.desktop && \
     # Clean up APT
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -173,6 +177,7 @@ RUN (id -u ubuntu >/dev/null 2>&1 && userdel -f ubuntu || true) && \
     mkdir -p /home/dev/Desktop && \
     cp /usr/share/applications/antigravity.desktop /home/dev/Desktop/ && \
     cp /usr/share/applications/antigravity-ide.desktop /home/dev/Desktop/ && \
+    ( [ -f /usr/share/applications/update-antigravity.desktop ] && cp /usr/share/applications/update-antigravity.desktop /home/dev/Desktop/ || true ) && \
     chmod +x /home/dev/Desktop/*.desktop && \
     chown -R dev:dev /home/dev
 
