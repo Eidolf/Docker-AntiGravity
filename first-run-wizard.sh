@@ -183,3 +183,4 @@ fi
 # ─────────────────────────────────────────────
 date --iso-8601=seconds > "$WIZARD_DONE_FLAG"
 log_wizard "Wizard completed. Flag written to $WIZARD_DONE_FLAG"
+
