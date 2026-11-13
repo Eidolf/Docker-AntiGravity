@@ -1,12 +1,12 @@
 #!/bin/bash
-# AntiGravity Entrypoint Script
+# AntiGravity Entrypoint Script — VSCode Edition
 
 # Function for robust logging
 log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
 }
 
-# Mask WSL detection (optional, ignore errors)
+# Mask WSL detection
 log "Applying system masks..."
 if [ -f /etc/fake_version ]; then
     mount --bind /etc/fake_version /proc/version || log "Warning: Could not mask /proc/version"
@@ -15,7 +15,7 @@ if [ -f /etc/fake_osrelease ]; then
     mount --bind /etc/fake_osrelease /proc/sys/kernel/osrelease || log "Warning: Could not mask /proc/sys/kernel/osrelease"
 fi
 
-# Dynamic Package Installation (Non-blocking)
+# Dynamic Package Installation (via env vars — legacy compatibility + extensibility)
 PACKAGES_TO_INSTALL=""
 
 if [ "$INSTALL_ANDROID_TOOLS" = "true" ]; then
@@ -67,8 +67,8 @@ if [ "$INSTALL_LINTER_TOOLS" = "true" ]; then
     ) || log "Warning: Some linter tools failed to install."
 fi
 
-# Fix permissions carefully to ensure user has full control over their home directory
-log "Ensuring correct permissions for /home/dev (recursive)..."
+# Fix permissions
+log "Ensuring correct permissions for /home/dev..."
 chown -R dev:dev /home/dev || log "Warning: chown -R /home/dev failed"
 
 # Configure Docker Storage Driver
@@ -105,7 +105,6 @@ fi
 # Desktop Environment Setup
 log "Cleaning up old locks..."
 rm -rf /tmp/.X*-lock /tmp/.X11-unix /home/dev/.config/google-chrome/SingletonLock
-# Only remove the LOCK files, not the authority file itself if it exists
 rm -f /home/dev/.Xauthority-* /home/dev/.ICEauthority-*
 
 export DISPLAY=:1
@@ -141,11 +140,13 @@ if [ ! -f /home/dev/.vnc/xstartup ]; then
     ln -s /usr/local/bin/vnc_startup.sh /home/dev/.vnc/xstartup
 fi
 
-# Ensure persistent desktop shortcuts are up-to-date and point to the correct paths
+# Update desktop shortcuts on each restart
 if [ -d /home/dev/Desktop ]; then
-    log "Updating desktop entry shortcuts..."
-    cp -f /usr/share/applications/antigravity.desktop /home/dev/Desktop/ 2>/dev/null || true
-    cp -f /usr/share/applications/antigravity-ide.desktop /home/dev/Desktop/ 2>/dev/null || true
+    log "Updating desktop shortcuts..."
+    cp -f /usr/share/applications/antigravity.desktop   /home/dev/Desktop/ 2>/dev/null || true
+    cp -f /usr/share/applications/code.desktop          /home/dev/Desktop/ 2>/dev/null || true
+    cp -f /usr/share/applications/mousepad.desktop      /home/dev/Desktop/ 2>/dev/null || true
+    cp -f /usr/share/applications/screenshot.desktop    /home/dev/Desktop/ 2>/dev/null || true
     if [ -f /usr/share/applications/update-antigravity.desktop ]; then
         cp -f /usr/share/applications/update-antigravity.desktop /home/dev/Desktop/ 2>/dev/null || true
     fi
@@ -161,7 +162,7 @@ gosu dev vncserver :1 -geometry 1920x1080 -depth 24 -localhost no -SecurityTypes
 log "Starting NoVNC/Websockify..."
 echo ""
 echo "=============================================="
-echo "  AntiGravity Desktop is ready!"
+echo "  AntiGravity Desktop (VSCode Edition) ready!"
 echo "  URL: http://localhost:6080/vnc.html"
 if [ -n "$VNC_PASSWORD" ]; then
     echo "  Password: $VNC_PASSWORD"
@@ -169,5 +170,4 @@ fi
 echo "=============================================="
 echo ""
 
-# Handover to websockify directly (Ubuntu 24.04 novnc package lacks launch.sh)
 exec gosu dev /usr/local/bin/websockify --web /usr/share/novnc/ 6080 localhost:5901

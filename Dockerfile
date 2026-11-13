@@ -17,11 +17,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         dbus-x11 \
         software-properties-common \
         wmctrl \
+        xdotool \
         tigervnc-standalone-server \
         tigervnc-tools \
         novnc \
         websockify \
-        # Layer 2 Components
+        # Screenshot tool
+        scrot \
+        # Layer 2 Components (XFCE Desktop)
         xfce4-session \
         xfce4-panel \
         xfce4-settings \
@@ -31,15 +34,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         xfce4-clipman-plugin \
         xfce4-notifyd \
         xfce4-taskmanager \
+        xfce4-screenshooter \
         gnome-keyring \
         libsecret-1-0 \
         hicolor-icon-theme \
         adwaita-icon-theme \
         xfce4-appfinder \
         thunar \
+        # Text editor outside of VS Code
+        mousepad \
+        # GUI dialog support for wizard
+        zenity \
+        yad \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Layer 3: Node.js (v24.x) and Python (using 3.14 for latest support)
+# Layer 3: Node.js (v24.x) and Python
 RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && \
     add-apt-repository -y ppa:deadsnakes/ppa && \
     apt-get update && apt-get install -y --no-install-recommends \
@@ -53,7 +62,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && \
     && python3 -m pip install --ignore-installed websockify numpy --break-system-packages \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Layer 4: Browsers & Docker CLI
+# Layer 4: Chrome Browser & Docker CLI
 RUN ARCH=$(dpkg --print-architecture) && \
     if [ "$ARCH" = "amd64" ]; then \
         curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
@@ -82,12 +91,25 @@ RUN ARCH=$(dpkg --print-architecture) && \
     apt-get install -y --no-install-recommends docker-ce docker-ce-cli containerd.io docker-compose-plugin iptables fuse-overlayfs && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Layer 5: AntiGravity v2.0 (Desktop & IDE) & LazyGit
+# Layer 5: Visual Studio Code
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "amd64" ]; then \
+        curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg && \
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | tee /etc/apt/sources.list.d/vscode.list && \
+        apt-get update && apt-get install -y --no-install-recommends code; \
+    else \
+        # ARM64: download .deb directly from VS Code releases
+        VS_CODE_DEB_URL="https://code.visualstudio.com/sha/download?build=stable&os=linux-deb-arm64" && \
+        curl -fsSL -o /tmp/vscode.deb "$VS_CODE_DEB_URL" && \
+        apt-get update && apt-get install -y --no-install-recommends /tmp/vscode.deb && \
+        rm /tmp/vscode.deb; \
+    fi && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Layer 6: AntiGravity v2.0 (Desktop & Hub) & LazyGit
 ENV LAZYGIT_VERSION=0.40.2
 ENV ANTIGRAVITY_HUB_VERSION=2.1.4
 ENV ANTIGRAVITY_HUB_BUILD=6481382726303744
-ENV ANTIGRAVITY_IDE_VERSION=2.1.1
-ENV ANTIGRAVITY_IDE_BUILD=6123990880747520
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         alsa-utils \
@@ -136,33 +158,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tar -xzf /tmp/antigravity-hub.tar.gz -C /opt/antigravity-desktop --strip-components=1 && \
     rm /tmp/antigravity-hub.tar.gz && \
     ln -sf /opt/antigravity-desktop/antigravity /usr/local/bin/antigravity && \
-    # 3. Download and install Antigravity IDE v2.0
-    curl -fsSL -o /tmp/antigravity-ide.tar.gz "https://dl.google.com/release2/j0qc3/antigravity/stable/${ANTIGRAVITY_IDE_VERSION}-${ANTIGRAVITY_IDE_BUILD}/${ARCH_SUB}/Antigravity%20IDE.tar.gz" && \
-    mkdir -p /opt/antigravity-ide && \
-    tar -xzf /tmp/antigravity-ide.tar.gz -C /opt/antigravity-ide --strip-components=1 && \
-    rm /tmp/antigravity-ide.tar.gz && \
-    # 4. Create wrapper script for Antigravity IDE
-    printf '#!/bin/bash\nXDG_CONFIG_HOME=${XDG_CONFIG_HOME:-~/.config}\nif [[ -f $XDG_CONFIG_HOME/antigravity-ide-flags.conf ]]; then\n    ANTIGRAVITY_IDE_USER_FLAGS="$(sed '\''s/#.*//'\'' $XDG_CONFIG_HOME/antigravity-ide-flags.conf | tr '\''\\n'\'' '\'' '\'')"\nfi\nexec /opt/antigravity-ide/bin/antigravity-ide "$@" $ANTIGRAVITY_IDE_USER_FLAGS\n' > /usr/local/bin/antigravity-ide && \
-    chmod +x /usr/local/bin/antigravity-ide && \
-    # 5. Download and install icons and desktop files
+    # 3. Download and install icons
     curl -fsSL -o /usr/share/pixmaps/antigravity.png "https://aur.archlinux.org/cgit/aur.git/plain/antigravity.png?h=antigravity" && \
-    if [ -f /opt/antigravity-ide/resources/app/resources/linux/code.png ]; then \
-        cp /opt/antigravity-ide/resources/app/resources/linux/code.png /usr/share/pixmaps/antigravity-ide.png; \
-    fi && \
-    # 6. Create Desktop entries
+    # 4. Create Desktop entries
     # Antigravity Desktop
     printf '[Desktop Entry]\nName=Antigravity\nComment=Experience liftoff\nGenericName=Agentic Platform\nExec=/usr/local/bin/antigravity %%U\nIcon=antigravity\nType=Application\nStartupNotify=false\nStartupWMClass=Antigravity\nCategories=Development;Utility;\n' > /usr/share/applications/antigravity.desktop && \
-    # Antigravity IDE
-    printf '[Desktop Entry]\nName=Antigravity IDE\nComment=Experience liftoff\nGenericName=Text Editor\nExec=/usr/local/bin/antigravity-ide %%F\nIcon=antigravity-ide\nType=Application\nStartupNotify=false\nStartupWMClass=antigravity-ide\nCategories=TextEditor;Development;IDE;\nMimeType=application/x-antigravity-ide-workspace;\nActions=new-empty-window;\nKeywords=vscode;\n\n[Desktop Action new-empty-window]\nName=New Empty Window\nExec=/usr/local/bin/antigravity-ide --new-window %%F\nIcon=antigravity-ide\n' > /usr/share/applications/antigravity-ide.desktop && \
-    # Antigravity IDE URL Handler
-    printf '[Desktop Entry]\nName=Antigravity IDE - URL Handler\nComment=Experience liftoff\nGenericName=Text Editor\nExec=/usr/local/bin/antigravity-ide --open-url %%U\nIcon=antigravity-ide\nType=Application\nNoDisplay=true\nStartupNotify=true\nCategories=Utility;TextEditor;Development;IDE;\nMimeType=x-scheme-handler/antigravity-ide;\nKeywords=vscode;\n' > /usr/share/applications/antigravity-ide-url-handler.desktop && \
-    # 7. Create In-Place Updater script and Desktop shortcut
-    printf '#!/bin/bash\nset -e\necho "Checking architecture..."\nARCH=$(dpkg --print-architecture)\nif [ "$ARCH" = "amd64" ]; then\n    ARCH_SUB="linux-x64"\nelse\n    ARCH_SUB="linux-arm"\nfi\necho "Fetching latest versions from Homebrew Casks..."\nVERSIONS=$(python3 -c '\''\nimport urllib.request, re\ndef get_cask_ver(cask):\n    try:\n        url = f"https://raw.githubusercontent.com/Homebrew/homebrew-cask/main/Casks/a/{cask}.rb"\n        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})\n        with urllib.request.urlopen(req) as response:\n            content = response.read().decode("utf-8")\n            match = re.search(r"version\\s+\\"([^\\"]+)\\"", content)\n            if match:\n                parts = match.group(1).split(",")\n                if len(parts) == 2:\n                    return parts[0], parts[1]\n    except Exception as e:\n        print(f"Error fetching {cask}: {e}")\n    return None, None\nhub_v, hub_b = get_cask_ver("antigravity")\nide_v, ide_b = get_cask_ver("antigravity-ide")\nprint(f"{hub_v}|{hub_b}|{ide_v}|{ide_b}")\n'\'')\nHUB_VER=$(echo "$VERSIONS" | cut -d"|" -f1)\nHUB_BUILD=$(echo "$VERSIONS" | cut -d"|" -f2)\nIDE_VER=$(echo "$VERSIONS" | cut -d"|" -f3)\nIDE_BUILD=$(echo "$VERSIONS" | cut -d"|" -f4)\nif [ -z "$HUB_VER" ] || [ -z "$HUB_BUILD" ] || [ -z "$IDE_VER" ] || [ -z "$IDE_BUILD" ]; then\n    echo "Error: Failed to fetch version info. Please enter versions manually:"\n    read -p "Antigravity Hub Version (e.g. 2.1.4): " HUB_VER\n    read -p "Antigravity Hub Build ID (e.g. 6481382726303744): " HUB_BUILD\n    read -p "Antigravity IDE Version (e.g. 2.1.1): " IDE_VER\n    read -p "Antigravity IDE Build ID (e.g. 6123990880747520): " IDE_BUILD\nfi\necho "Targeting versions:"\necho "  Antigravity: $HUB_VER (Build $HUB_BUILD)"\necho "  Antigravity IDE: $IDE_VER (Build $IDE_BUILD)"\necho "Updating Antigravity..."\ncurl -fsSL -o /tmp/antigravity-hub.tar.gz "https://storage.googleapis.com/antigravity-public/antigravity-hub/${HUB_VER}-${HUB_BUILD}/${ARCH_SUB}/Antigravity.tar.gz"\nsudo rm -rf /opt/antigravity-desktop/*\nsudo tar -xzf /tmp/antigravity-hub.tar.gz -C /opt/antigravity-desktop --strip-components=1\nrm /tmp/antigravity-hub.tar.gz\nsudo ln -sf /opt/antigravity-desktop/antigravity /usr/local/bin/antigravity\necho "Updating Antigravity IDE..."\ncurl -fsSL -o /tmp/antigravity-ide.tar.gz "https://dl.google.com/release2/j0qc3/antigravity/stable/${IDE_VER}-${IDE_BUILD}/${ARCH_SUB}/Antigravity%%20IDE.tar.gz"\nsudo rm -rf /opt/antigravity-ide/*\nsudo tar -xzf /tmp/antigravity-ide.tar.gz -C /opt/antigravity-ide --strip-components=1\nrm /tmp/antigravity-ide.tar.gz\necho "Update complete! Please restart any running instances of Antigravity or Antigravity IDE."\nread -p "Press Enter to exit..."\n' > /usr/local/bin/update-in-place && \
+    # VS Code
+    printf '[Desktop Entry]\nName=Visual Studio Code\nComment=Code Editing. Redefined.\nGenericName=Text Editor\nExec=/usr/bin/code --no-sandbox --unity-launch %%F\nIcon=com.visualstudio.code\nType=Application\nStartupNotify=false\nStartupWMClass=Code\nCategories=TextEditor;Development;IDE;\nMimeType=application/x-code-workspace;\nActions=new-empty-window;\nKeywords=vscode;\n\n[Desktop Action new-empty-window]\nName=New Empty Window\nExec=/usr/bin/code --no-sandbox --new-window %%F\nIcon=com.visualstudio.code\n' > /usr/share/applications/code.desktop && \
+    # Mousepad (text editor)
+    printf '[Desktop Entry]\nName=Mousepad\nComment=A simple plain text editor\nGenericName=Text Editor\nExec=mousepad %%F\nIcon=accessories-text-editor\nType=Application\nCategories=Application;Utility;TextEditor;\n' > /usr/share/applications/mousepad.desktop && \
+    # Screenshot shortcut
+    printf '[Desktop Entry]\nName=Screenshot Tool\nComment=Take screenshots of your desktop\nExec=xfce4-screenshooter\nIcon=applets-screenshooter\nType=Application\nCategories=Graphics;Utility;\n' > /usr/share/applications/screenshot.desktop && \
+    # 5. Create In-Place Antigravity Updater script and Desktop shortcut
+    printf '#!/bin/bash\nset -e\necho "Checking architecture..."\nARCH=$(dpkg --print-architecture)\nif [ "$ARCH" = "amd64" ]; then\n    ARCH_SUB="linux-x64"\nelse\n    ARCH_SUB="linux-arm"\nfi\necho "Fetching latest version from Homebrew Cask..."\nVERSION=$(python3 -c '"'"'\nimport urllib.request, re\ntry:\n    url = "https://raw.githubusercontent.com/Homebrew/homebrew-cask/main/Casks/a/antigravity.rb"\n    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})\n    with urllib.request.urlopen(req) as r:\n        content = r.read().decode("utf-8")\n        m = re.search(r"version\\s+\\"([^\\"]+)\\"", content)\n        if m:\n            parts = m.group(1).split(",")\n            if len(parts) == 2:\n                print(f"{parts[0]}|{parts[1]}")\nexcept Exception as e:\n    print(f"Error: {e}")\n'"'"')\nHUB_VER=$(echo "$VERSION" | cut -d"|" -f1)\nHUB_BUILD=$(echo "$VERSION" | cut -d"|" -f2)\nif [ -z "$HUB_VER" ] || [ -z "$HUB_BUILD" ]; then\n    echo "Error: Failed to fetch version info."\n    read -p "Antigravity Hub Version (e.g. 2.1.4): " HUB_VER\n    read -p "Antigravity Hub Build ID (e.g. 6481382726303744): " HUB_BUILD\nfi\necho "Updating Antigravity to $HUB_VER (Build $HUB_BUILD)..."\ncurl -fsSL -o /tmp/antigravity-hub.tar.gz "https://storage.googleapis.com/antigravity-public/antigravity-hub/${HUB_VER}-${HUB_BUILD}/${ARCH_SUB}/Antigravity.tar.gz"\nsudo rm -rf /opt/antigravity-desktop/*\nsudo tar -xzf /tmp/antigravity-hub.tar.gz -C /opt/antigravity-desktop --strip-components=1\nrm /tmp/antigravity-hub.tar.gz\nsudo ln -sf /opt/antigravity-desktop/antigravity /usr/local/bin/antigravity\necho "Update complete! Please restart any running Antigravity instances."\nread -p "Press Enter to exit..."\n' > /usr/local/bin/update-in-place && \
     chmod +x /usr/local/bin/update-in-place && \
-    printf '[Desktop Entry]\nName=Update Antigravity\nComment=Update Antigravity and Antigravity IDE in-place\nExec=xfce4-terminal -e /usr/local/bin/update-in-place\nIcon=system-software-update\nType=Application\nTerminal=false\nCategories=System;Utility;\n' > /usr/share/applications/update-antigravity.desktop && \
+    printf '[Desktop Entry]\nName=Update Antigravity\nComment=Update Antigravity in-place\nExec=xfce4-terminal -e /usr/local/bin/update-in-place\nIcon=system-software-update\nType=Application\nTerminal=false\nCategories=System;Utility;\n' > /usr/share/applications/update-antigravity.desktop && \
     # Clean up APT
     apt-get clean && rm -rf /var/lib/apt/lists/*
-
 
 # Final Setup: User, scripts, and permissions
 # Ubuntu 24.04 has a default 'ubuntu' user (UID 1000) that we must remove to reuse UID 1000 for 'dev'
@@ -175,25 +187,55 @@ RUN (id -u ubuntu >/dev/null 2>&1 && userdel -f ubuntu || true) && \
     ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html && \
     mkdir -p /home/dev/.vnc && \
     mkdir -p /home/dev/Desktop && \
+    # Copy desktop shortcuts
     cp /usr/share/applications/antigravity.desktop /home/dev/Desktop/ && \
-    cp /usr/share/applications/antigravity-ide.desktop /home/dev/Desktop/ && \
+    cp /usr/share/applications/code.desktop /home/dev/Desktop/ && \
+    cp /usr/share/applications/mousepad.desktop /home/dev/Desktop/ && \
+    cp /usr/share/applications/screenshot.desktop /home/dev/Desktop/ && \
     ( [ -f /usr/share/applications/update-antigravity.desktop ] && cp /usr/share/applications/update-antigravity.desktop /home/dev/Desktop/ || true ) && \
     chmod +x /home/dev/Desktop/*.desktop && \
     chown -R dev:dev /home/dev
 
-# Layer 6: Claude Code CLI
+# Layer 7: VS Code Extensions & Claude Code CLI (as dev user)
 USER dev
 WORKDIR /home/dev
-RUN curl -fsSL https://claude.ai/install.sh | bash
+RUN \
+    # Install VS Code extensions
+    code --no-sandbox --user-data-dir=/home/dev/.vscode-install-tmp \
+        --install-extension ms-python.python \
+        --install-extension ms-python.vscode-pylance \
+        --install-extension ms-vscode.cpptools \
+        --install-extension ms-vscode-remote.remote-containers \
+        --install-extension ms-azuretools.vscode-docker \
+        --install-extension dbaeumer.vscode-eslint \
+        --install-extension esbenp.prettier-vscode \
+        --install-extension eamodio.gitlens \
+        --install-extension mhutchie.git-graph \
+        --install-extension usernamehw.errorlens \
+        --install-extension streetsidesoftware.code-spell-checker \
+        --install-extension PKief.material-icon-theme \
+        --install-extension GitHub.copilot \
+        --install-extension GitHub.vscode-pull-request-github \
+        2>/dev/null || true && \
+    rm -rf /home/dev/.vscode-install-tmp && \
+    # Install Claude Code CLI
+    curl -fsSL https://claude.ai/install.sh | bash
 USER root
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY vnc_startup.sh /usr/local/bin/vnc_startup.sh
+COPY first-run-wizard.sh /usr/local/bin/first-run-wizard.sh
 COPY fake_version /etc/fake_version
 COPY fake_osrelease /etc/fake_osrelease
 
-RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh /usr/local/bin/vnc_startup.sh && \
-    chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/vnc_startup.sh
+RUN sed -i 's/\r$//' \
+        /usr/local/bin/entrypoint.sh \
+        /usr/local/bin/vnc_startup.sh \
+        /usr/local/bin/first-run-wizard.sh && \
+    chmod +x \
+        /usr/local/bin/entrypoint.sh \
+        /usr/local/bin/vnc_startup.sh \
+        /usr/local/bin/first-run-wizard.sh
 
 WORKDIR /home/dev
 EXPOSE 5901 6080
