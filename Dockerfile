@@ -5,58 +5,58 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Layer 1: Core System & VNC Setup
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    gnupg \
-    lsb-release \
-    curl \
-    wget \
-    jq \
-    sudo \
-    git \
-    net-tools \
-    dbus-x11 \
-    software-properties-common \
-    wmctrl \
-    xdotool \
-    tigervnc-standalone-server \
-    tigervnc-tools \
-    novnc \
-    websockify \
-    # Screenshot tool
-    scrot \
-    # Layer 2 Components (XFCE Desktop)
-    xfce4-session \
-    xfce4-panel \
-    xfce4-settings \
-    xfwm4 \
-    xfdesktop4 \
-    xfce4-terminal \
-    xfce4-clipman-plugin \
-    xfce4-notifyd \
-    xfce4-taskmanager \
-    xfce4-screenshooter \
-    gnome-keyring \
-    libsecret-1-0 \
-    hicolor-icon-theme \
-    adwaita-icon-theme \
-    xfce4-appfinder \
-    thunar \
-    # Text editor outside of VS Code
-    mousepad \
-    # GUI dialog support for wizard
-    zenity \
-    yad \
+        ca-certificates \
+        gnupg \
+        lsb-release \
+        curl \
+        wget \
+        jq \
+        sudo \
+        git \
+        net-tools \
+        dbus-x11 \
+        software-properties-common \
+        wmctrl \
+        xdotool \
+        tigervnc-standalone-server \
+        tigervnc-tools \
+        novnc \
+        websockify \
+        # Screenshot tool
+        scrot \
+        # Layer 2 Components (XFCE Desktop)
+        xfce4-session \
+        xfce4-panel \
+        xfce4-settings \
+        xfwm4 \
+        xfdesktop4 \
+        xfce4-terminal \
+        xfce4-clipman-plugin \
+        xfce4-notifyd \
+        xfce4-taskmanager \
+        xfce4-screenshooter \
+        gnome-keyring \
+        libsecret-1-0 \
+        hicolor-icon-theme \
+        adwaita-icon-theme \
+        xfce4-appfinder \
+        thunar \
+        # Text editor outside of VS Code
+        mousepad \
+        # GUI dialog support for wizard
+        zenity \
+        yad \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Layer 3: Node.js (v24.x) and Python
 RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && \
     add-apt-repository -y ppa:deadsnakes/ppa && \
     apt-get update && apt-get install -y --no-install-recommends \
-    nodejs \
-    python3.14 \
-    python3.14-venv \
-    python3.14-dev \
-    gosu \
+        nodejs \
+        python3.14 \
+        python3.14-venv \
+        python3.14-dev \
+        gosu \
     && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.14 1 \
     && curl -fsSL https://bootstrap.pypa.io/get-pip.py | python3.14 - --break-system-packages \
     && python3 -m pip install --ignore-installed websockify numpy --break-system-packages \
@@ -65,20 +65,20 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && \
 # Layer 4: Chrome Browser & Docker CLI
 RUN ARCH=$(dpkg --print-architecture) && \
     if [ "$ARCH" = "amd64" ]; then \
-    curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list && \
-    apt-get update && apt-get install -y --no-install-recommends google-chrome-stable && \
-    if [ -f /opt/google/chrome/google-chrome ]; then \
-    sed -i 's/exec -a "$0" "$HERE\/chrome" "$@"/exec -a "$0" "$HERE\/chrome" --password-store=basic "$@"/' /opt/google/chrome/google-chrome; \
-    fi; \
-    ln -sf /usr/bin/google-chrome-stable /usr/local/bin/google-chrome; \
+        curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list && \
+        apt-get update && apt-get install -y --no-install-recommends google-chrome-stable && \
+        if [ -f /opt/google/chrome/google-chrome ]; then \
+            sed -i 's/exec -a "$0" "$HERE\/chrome" "$@"/exec -a "$0" "$HERE\/chrome" --password-store=basic "$@"/' /opt/google/chrome/google-chrome; \
+        fi; \
+        ln -sf /usr/bin/google-chrome-stable /usr/local/bin/google-chrome; \
     else \
-    mkdir -p /etc/apt/keyrings && \
-    (for i in 1 2 3; do curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x82BB6851C64F6880&options=mr" | gpg --dearmor -o /etc/apt/keyrings/xtradeb.gpg && break || sleep 5; done) && \
-    echo "deb [signed-by=/etc/apt/keyrings/xtradeb.gpg] http://ppa.launchpad.net/xtradeb/apps/ubuntu noble main" | tee /etc/apt/sources.list.d/xtradeb-apps.list > /dev/null && \
-    (for i in 1 2 3; do apt-get update && apt-get install -y --no-install-recommends chromium && break || sleep 5; done) && \
-    printf '#!/bin/bash\nexec /usr/bin/chromium --no-sandbox --test-type --disable-dev-shm-usage --no-first-run --no-default-browser-check "$@"' > /usr/local/bin/google-chrome && \
-    chmod +x /usr/local/bin/google-chrome; \
+        mkdir -p /etc/apt/keyrings && \
+        (for i in 1 2 3; do curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x82BB6851C64F6880&options=mr" | gpg --dearmor -o /etc/apt/keyrings/xtradeb.gpg && break || sleep 5; done) && \
+        echo "deb [signed-by=/etc/apt/keyrings/xtradeb.gpg] http://ppa.launchpad.net/xtradeb/apps/ubuntu noble main" | tee /etc/apt/sources.list.d/xtradeb-apps.list > /dev/null && \
+        (for i in 1 2 3; do apt-get update && apt-get install -y --no-install-recommends chromium && break || sleep 5; done) && \
+        printf '#!/bin/bash\nexec /usr/bin/chromium --no-sandbox --test-type --disable-dev-shm-usage --no-first-run --no-default-browser-check "$@"' > /usr/local/bin/google-chrome && \
+        chmod +x /usr/local/bin/google-chrome; \
     fi && \
     ln -sf /usr/local/bin/google-chrome /usr/local/bin/google-chrome-stable && \
     update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/local/bin/google-chrome 100 && \
@@ -94,15 +94,15 @@ RUN ARCH=$(dpkg --print-architecture) && \
 # Layer 5: Visual Studio Code
 RUN ARCH=$(dpkg --print-architecture) && \
     if [ "$ARCH" = "amd64" ]; then \
-    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg && \
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | tee /etc/apt/sources.list.d/vscode.list && \
-    apt-get update && apt-get install -y --no-install-recommends code; \
+        curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg && \
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | tee /etc/apt/sources.list.d/vscode.list && \
+        apt-get update && apt-get install -y --no-install-recommends code; \
     else \
-    # ARM64: download .deb directly from VS Code releases
-    VS_CODE_DEB_URL="https://code.visualstudio.com/sha/download?build=stable&os=linux-deb-arm64" && \
-    curl -fsSL -o /tmp/vscode.deb "$VS_CODE_DEB_URL" && \
-    apt-get update && apt-get install -y --no-install-recommends /tmp/vscode.deb && \
-    rm /tmp/vscode.deb; \
+        # ARM64: download .deb directly from VS Code releases
+        VS_CODE_DEB_URL="https://code.visualstudio.com/sha/download?build=stable&os=linux-deb-arm64" && \
+        curl -fsSL -o /tmp/vscode.deb "$VS_CODE_DEB_URL" && \
+        apt-get update && apt-get install -y --no-install-recommends /tmp/vscode.deb && \
+        rm /tmp/vscode.deb; \
     fi && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -112,40 +112,40 @@ ENV ANTIGRAVITY_HUB_VERSION=2.1.4
 ENV ANTIGRAVITY_HUB_BUILD=6481382726303744
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    alsa-utils \
-    libasound2t64 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libatspi2.0-0 \
-    libcairo2 \
-    libcups2 \
-    libdbus-1-3 \
-    libexpat1 \
-    libgbm1 \
-    libgtk-3-0 \
-    libnspr4 \
-    libnss3 \
-    libpango-1.0-0 \
-    libx11-6 \
-    libxcb1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxkbcommon0 \
-    libxkbfile1 \
-    libxrandr2 \
-    libsecret-1-0 \
-    libwebkit2gtk-4.1-0 \
-    libsoup-3.0-0 \
-    xdg-utils \
+        alsa-utils \
+        libasound2t64 \
+        libatk-bridge2.0-0 \
+        libatk1.0-0 \
+        libatspi2.0-0 \
+        libcairo2 \
+        libcups2 \
+        libdbus-1-3 \
+        libexpat1 \
+        libgbm1 \
+        libgtk-3-0 \
+        libnspr4 \
+        libnss3 \
+        libpango-1.0-0 \
+        libx11-6 \
+        libxcb1 \
+        libxcomposite1 \
+        libxdamage1 \
+        libxext6 \
+        libxfixes3 \
+        libxkbcommon0 \
+        libxkbfile1 \
+        libxrandr2 \
+        libsecret-1-0 \
+        libwebkit2gtk-4.1-0 \
+        libsoup-3.0-0 \
+        xdg-utils \
     && ARCH=$(dpkg --print-architecture) && \
     if [ "$ARCH" = "amd64" ]; then \
-    ARCH_SUB="linux-x64"; \
-    ARCH_LG="x86_64"; \
+        ARCH_SUB="linux-x64"; \
+        ARCH_LG="x86_64"; \
     else \
-    ARCH_SUB="linux-arm"; \
-    ARCH_LG="arm64"; \
+        ARCH_SUB="linux-arm"; \
+        ARCH_LG="arm64"; \
     fi && \
     # 1. Install LazyGit
     curl -Lo lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/download/v${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION}_Linux_${ARCH_LG}.tar.gz" && \
@@ -202,21 +202,21 @@ WORKDIR /home/dev
 RUN \
     # Install VS Code extensions
     code --no-sandbox --user-data-dir=/home/dev/.vscode-install-tmp \
-    --install-extension ms-python.python \
-    --install-extension ms-python.vscode-pylance \
-    --install-extension ms-vscode.cpptools \
-    --install-extension ms-vscode-remote.remote-containers \
-    --install-extension ms-azuretools.vscode-docker \
-    --install-extension dbaeumer.vscode-eslint \
-    --install-extension esbenp.prettier-vscode \
-    --install-extension eamodio.gitlens \
-    --install-extension mhutchie.git-graph \
-    --install-extension usernamehw.errorlens \
-    --install-extension streetsidesoftware.code-spell-checker \
-    --install-extension PKief.material-icon-theme \
-    --install-extension GitHub.copilot \
-    --install-extension GitHub.vscode-pull-request-github \
-    2>/dev/null || true && \
+        --install-extension ms-python.python \
+        --install-extension ms-python.vscode-pylance \
+        --install-extension ms-vscode.cpptools \
+        --install-extension ms-vscode-remote.remote-containers \
+        --install-extension ms-azuretools.vscode-docker \
+        --install-extension dbaeumer.vscode-eslint \
+        --install-extension esbenp.prettier-vscode \
+        --install-extension eamodio.gitlens \
+        --install-extension mhutchie.git-graph \
+        --install-extension usernamehw.errorlens \
+        --install-extension streetsidesoftware.code-spell-checker \
+        --install-extension PKief.material-icon-theme \
+        --install-extension GitHub.copilot \
+        --install-extension GitHub.vscode-pull-request-github \
+        2>/dev/null || true && \
     rm -rf /home/dev/.vscode-install-tmp && \
     # Install Claude Code CLI
     curl -fsSL https://claude.ai/install.sh | bash
@@ -229,13 +229,13 @@ COPY fake_version /etc/fake_version
 COPY fake_osrelease /etc/fake_osrelease
 
 RUN sed -i 's/\r$//' \
-    /usr/local/bin/entrypoint.sh \
-    /usr/local/bin/vnc_startup.sh \
-    /usr/local/bin/first-run-wizard.sh && \
+        /usr/local/bin/entrypoint.sh \
+        /usr/local/bin/vnc_startup.sh \
+        /usr/local/bin/first-run-wizard.sh && \
     chmod +x \
-    /usr/local/bin/entrypoint.sh \
-    /usr/local/bin/vnc_startup.sh \
-    /usr/local/bin/first-run-wizard.sh
+        /usr/local/bin/entrypoint.sh \
+        /usr/local/bin/vnc_startup.sh \
+        /usr/local/bin/first-run-wizard.sh
 
 WORKDIR /home/dev
 EXPOSE 5901 6080
