@@ -29,7 +29,8 @@ Features XFCE4, **Visual Studio Code**, Google Chrome, and a full Docker-in-Dock
     - **Python**: 3.14
     - **Claude Code CLI**: Pre-installed for AI-assisted development
 - **Persistence**: Home directory and settings persisted via Docker volume
-- **First-Run Wizard**: Interactive GUI wizard on first login to select additional software (runs only once)
+- **First-Run Wizard**: Interactive GUI wizard on first login to select additional
+  software; completion is recorded after success or an explicit skip
 
 ## First-Run Setup Wizard
 
@@ -39,8 +40,19 @@ It lets you select:
 - **Additional system packages** — compilers (gcc, clang, cmake), Android tools, Windows cross-compilation (mingw-w64), Neovim, and more
 - **Additional VS Code extensions** — Go, Rust, Java, Kubernetes, Terraform, Tailwind CSS, Jupyter, and more
 
-The wizard runs **only once**. Your choices are saved to `~/.config/agy-setup-done`.  
-It will **not** reappear on container restart or image update.
+After a successful installation or an explicit **Skip All**, the wizard records
+completion in `~/.config/agy-setup-done` and does not reappear. If an installation
+fails, it reports the error and remains retryable; review
+`~/.config/agy-setup.log`, then restart the desktop or run
+`/usr/local/bin/first-run-wizard.sh`.
+
+Packages installed by the wizard are stored in the container filesystem, not the
+home volume. They are lost when the container is recreated, while the completion
+flag remains in the home volume. For packages that must survive image updates,
+use `ADDITIONAL_PACKAGES`, the package-group environment variables, or a derived
+image. Image-baked VS Code extensions are copied into the persistent profile
+without overwriting existing extensions at startup; wizard-installed extensions
+continue to live in the persisted home volume.
 
 > **Headless / automated deployments**: If you are running without an interactive first login (e.g. CI, Portainer with no user session), use the environment variables below to pre-install packages instead.
 
@@ -58,7 +70,7 @@ They are the recommended approach for **automated or headless deployments** wher
 | `INSTALL_LINTER_TOOLS` | `true` → installs `act`, `make`, `poetry`, `pre-commit` |
 | `INSTALL_WINDOWS_TOOLS` | `true` → installs `mingw-w64` for Windows cross-compilation |
 
-> **Tip**: For interactive use, leave these unset and configure everything via the first-run wizard instead.
+> **Tip**: Use the first-run wizard for interactive, container-local package installs. Use the environment variables or a derived image for packages that must survive container recreation.
 
 ## GitHub CLI and Git Authentication
 
@@ -131,8 +143,11 @@ services:
 
 volumes:
   antigravity-home:
+    name: antigravity-home
   antigravity-workspace:
+    name: antigravity-workspace
   antigravity-docker-data:
+    name: antigravity-docker-data
 ```
 
 1. Save as `docker-compose.yml` (or paste into Portainer Stack).
@@ -153,7 +168,11 @@ docker run -d \
 
 ## VS Code Pre-installed Extensions
 
-The following extensions are baked into the image at build time:
+The following extensions are baked into the image at build time under
+`/opt/antigravity-extensions`, outside the persisted `/home/dev` volume. At
+startup, missing image-baked extensions are copied into the VS Code profile, so
+they remain available when an existing home volume is reused without replacing
+extensions already installed there.
 
 | Extension | Purpose |
 |---|---|
@@ -206,7 +225,7 @@ server {
 
 ### CI/CD Pipelines
 
-- **Release** (`release.yml`): Triggers on push to `main` or release tags — builds and pushes the multi-arch image to `ghcr.io/eidolf/docker-antigravity`.
+- **Release** (`release.yml`): Manually started from the GitHub Actions **Release Manager** workflow; select `release_type` (`nightly`, `beta`, or `stable`) to build and push the multi-arch image to `ghcr.io/eidolf/docker-antigravity`.
 - **CI Orchestrator** (`ci-orchestrator.yml`): Runs on PRs and `main` pushes — Python linting (Ruff) and Dockerfile dry-run build.
 - **PR Orchestrator** (`pr-orchestrator.yml`): Auto-labels PRs by changed files and size.
 

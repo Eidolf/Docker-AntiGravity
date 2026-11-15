@@ -23,6 +23,12 @@ export SSH_AUTH_SOCK
 # Create autostart directory
 mkdir -p $HOME/.config/autostart
 
+# Restore image-baked extensions into the persistent profile without replacing user extensions.
+if ! restore-vscode-extensions /opt/antigravity-extensions "$HOME/.vscode/extensions"; then
+    echo "Error: Could not restore preinstalled VS Code extensions." >&2
+    exit 1
+fi
+
 # Ensure persistent data directory
 sudo mkdir -p /data/antigravity
 sudo chown -R dev:dev /data/antigravity
@@ -51,10 +57,35 @@ if [ ! -f "$VSCODE_SETTINGS" ]; then
     "files.autoSave": "afterDelay",
     "files.autoSaveDelay": 1000,
     "extensions.autoUpdate": false,
-    "security.workspace.trust.enabled": false,
+    "security.workspace.trust.enabled": true,
     "docker.enableDockerComposeLanguageService": true
 }
 EOF
+fi
+
+# Upgrade profiles created by older images, which disabled Workspace Trust.
+VSCODE_TRUST_MIGRATION_FLAG="$HOME/.config/agy-workspace-trust-migrated"
+if [ ! -f "$VSCODE_TRUST_MIGRATION_FLAG" ]; then
+    if ! jq -e 'type == "object"' "$VSCODE_SETTINGS" >/dev/null; then
+        echo "Error: Invalid VS Code settings JSON at $VSCODE_SETTINGS." >&2
+        exit 1
+    fi
+    if jq -e '.["security.workspace.trust.enabled"] == false' "$VSCODE_SETTINGS" >/dev/null; then
+        TMP_VSCODE_SETTINGS=$(mktemp "${VSCODE_SETTINGS}.XXXXXX") || {
+            echo "Error: Could not create a temporary VS Code settings file." >&2
+            exit 1
+        }
+        if ! jq '.["security.workspace.trust.enabled"] = true' "$VSCODE_SETTINGS" > "$TMP_VSCODE_SETTINGS" ||
+            ! mv "$TMP_VSCODE_SETTINGS" "$VSCODE_SETTINGS"; then
+            rm -f "$TMP_VSCODE_SETTINGS"
+            echo "Error: Could not enable VS Code Workspace Trust." >&2
+            exit 1
+        fi
+    fi
+    if ! touch "$VSCODE_TRUST_MIGRATION_FLAG"; then
+        echo "Error: Could not record VS Code Workspace Trust migration." >&2
+        exit 1
+    fi
 fi
 
 # Autostart the first-run wizard (runs only once, guarded by flag file)

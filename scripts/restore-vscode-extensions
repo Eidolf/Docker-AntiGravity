@@ -1,0 +1,12 @@
+#!/bin/bash
+set -e
+
+SOURCE_DIR="${1:-/opt/antigravity-extensions}"
+TARGET_DIR="${2:-$HOME/.vscode/extensions}"
+
+if [ ! -d "$SOURCE_DIR" ]; then
+    exit 0
+fi
+
+mkdir -p "$TARGET_DIR"
+cp -a --update=none "$SOURCE_DIR/." "$TARGET_DIR/"

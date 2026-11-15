@@ -1,4 +1,6 @@
 #!/bin/bash
+set -o pipefail
+
 # First-Run Setup Wizard for AntiGravity Desktop (VSCode Edition)
 # This script runs ONCE after first login and lets the user select optional software.
 # The selection is persisted to ~/.config/agy-setup-done so it never runs again.
@@ -122,6 +124,8 @@ zenity --question \
 CONFIRM_RC=$?
 
 if [ $CONFIRM_RC -eq 0 ]; then
+    INSTALL_FAILED=0
+
     # ── Install system packages ──────────────────
     if [ -n "$CHOICES" ]; then
         # Extract pip packages before apt install
@@ -131,6 +135,7 @@ if [ $CONFIRM_RC -eq 0 ]; then
             for item in "${items[@]}"; do
                 case "$item" in
                     "pre-commit"|"poetry") PIP_PACKAGES="$PIP_PACKAGES $item" ;;
+                    "android-sdk-platform-tools-common") APT_PACKAGES="$APT_PACKAGES $item adb fastboot" ;;
                     *) APT_PACKAGES="$APT_PACKAGES $item" ;;
                 esac
             done
@@ -138,23 +143,34 @@ if [ $CONFIRM_RC -eq 0 ]; then
 
         if [ -n "$APT_PACKAGES" ]; then
             log_wizard "Installing APT packages:$APT_PACKAGES"
-            (
-                sudo apt-get update
+            if (
+                sudo apt-get update &&
                 # shellcheck disable=SC2086
-                sudo apt-get install -y $APT_PACKAGES
-                sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/*
+                sudo apt-get install -y $APT_PACKAGES &&
+                sudo apt-get clean &&
+                sudo rm -rf /var/lib/apt/lists/*
             ) 2>&1 | tee -a "$WIZARD_LOG" | \
             zenity --progress \
                 --title="Installing packages..." \
                 --text="Installing system packages, please wait..." \
                 --pulsate --auto-close --no-cancel \
-                --width=400 2>/dev/null || true
+                --width=400 2>/dev/null; then
+                log_wizard "APT packages installed successfully."
+            else
+                log_wizard "ERROR: APT package installation failed."
+                INSTALL_FAILED=1
+            fi
         fi
 
         if [ -n "$PIP_PACKAGES" ]; then
             log_wizard "Installing pip packages:$PIP_PACKAGES"
             # shellcheck disable=SC2086
-            python3 -m pip install $PIP_PACKAGES --break-system-packages 2>&1 | tee -a "$WIZARD_LOG" || true
+            if python3 -m pip install $PIP_PACKAGES --break-system-packages 2>&1 | tee -a "$WIZARD_LOG"; then
+                log_wizard "Pip packages installed successfully."
+            else
+                log_wizard "ERROR: Pip package installation failed."
+                INSTALL_FAILED=1
+            fi
         fi
     fi
 
@@ -164,23 +180,44 @@ if [ $CONFIRM_RC -eq 0 ]; then
         while IFS='|' read -ra exts; do
             for ext in "${exts[@]}"; do
                 log_wizard "  Installing extension: $ext"
-                code --no-sandbox --install-extension "$ext" 2>&1 | tee -a "$WIZARD_LOG" || true
+                if code --no-sandbox --install-extension "$ext" 2>&1 | tee -a "$WIZARD_LOG"; then
+                    log_wizard "  Installed extension: $ext"
+                else
+                    log_wizard "ERROR: Failed to install extension: $ext"
+                    INSTALL_FAILED=1
+                fi
             done
         done <<< "$VSCODE_CHOICES"
     fi
 
-    zenity --info \
-        --title="Setup Complete" \
-        --text="<b>Installation complete!</b>\n\nYour selections have been saved.\nThis wizard will not appear again.\n\nEnjoy AntiGravity Desktop!" \
-        --width=400 \
-        2>/dev/null || true
-else
+    if [ "$INSTALL_FAILED" -eq 0 ]; then
+        zenity --info \
+            --title="Setup Complete" \
+            --text="<b>Installation complete!</b>\n\nYour selections have been saved.\nThis wizard will not appear again.\n\nEnjoy AntiGravity Desktop!" \
+            --width=400 \
+            2>/dev/null || true
+    else
+        log_wizard "ERROR: Wizard not marked complete; failed installations can be retried."
+        zenity --warning \
+            --title="Setup Incomplete" \
+            --text="<b>Some installations failed.</b>\n\nThe wizard was not marked complete. Review $WIZARD_LOG, then retry by restarting the desktop or running /usr/local/bin/first-run-wizard.sh." \
+            --width=480 \
+            2>/dev/null || true
+        exit 1
+    fi
+elif [ "$CONFIRM_RC" -eq 1 ]; then
     log_wizard "User skipped all optional installations."
+else
+    log_wizard "ERROR: Confirmation dialog failed (exit $CONFIRM_RC); wizard remains retryable."
+    exit 1
 fi
 
 # ─────────────────────────────────────────────
-# Mark wizard as done — NEVER run again
+# Mark successful setup or an explicit Skip All as done.
 # ─────────────────────────────────────────────
-date --iso-8601=seconds > "$WIZARD_DONE_FLAG"
+if ! date --iso-8601=seconds > "$WIZARD_DONE_FLAG"; then
+    log_wizard "ERROR: Could not write wizard completion flag; setup remains retryable."
+    exit 1
+fi
 log_wizard "Wizard completed. Flag written to $WIZARD_DONE_FLAG"
 

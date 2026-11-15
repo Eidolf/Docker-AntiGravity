@@ -181,7 +181,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Screenshot shortcut
     printf '[Desktop Entry]\nName=Screenshot Tool\nComment=Take screenshots of your desktop\nExec=xfce4-screenshooter\nIcon=applets-screenshooter\nType=Application\nCategories=Graphics;Utility;\n' > /usr/share/applications/screenshot.desktop && \
     # 5. Create In-Place Antigravity Updater script and Desktop shortcut
-    printf '#!/bin/bash\nset -e\necho "Checking architecture..."\nARCH=$(dpkg --print-architecture)\nif [ "$ARCH" = "amd64" ]; then\n    ARCH_SUB="linux-x64"\nelse\n    ARCH_SUB="linux-arm"\nfi\necho "Fetching latest version from Homebrew Cask..."\nVERSION=$(python3 -c '"'"'\nimport urllib.request, re\ntry:\n    url = "https://raw.githubusercontent.com/Homebrew/homebrew-cask/main/Casks/a/antigravity.rb"\n    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})\n    with urllib.request.urlopen(req) as r:\n        content = r.read().decode("utf-8")\n        m = re.search(r"version\\s+\\"([^\\"]+)\\"", content)\n        if m:\n            parts = m.group(1).split(",")\n            if len(parts) == 2:\n                print(f"{parts[0]}|{parts[1]}")\nexcept Exception as e:\n    print(f"Error: {e}")\n'"'"')\nHUB_VER=$(echo "$VERSION" | cut -d"|" -f1)\nHUB_BUILD=$(echo "$VERSION" | cut -d"|" -f2)\nif [ -z "$HUB_VER" ] || [ -z "$HUB_BUILD" ]; then\n    echo "Error: Failed to fetch version info."\n    read -p "Antigravity Hub Version (e.g. 2.1.4): " HUB_VER\n    read -p "Antigravity Hub Build ID (e.g. 6481382726303744): " HUB_BUILD\nfi\necho "Updating Antigravity to $HUB_VER (Build $HUB_BUILD)..."\ncurl -fsSL -o /tmp/antigravity-hub.tar.gz "https://storage.googleapis.com/antigravity-public/antigravity-hub/${HUB_VER}-${HUB_BUILD}/${ARCH_SUB}/Antigravity.tar.gz"\nsudo rm -rf /opt/antigravity-desktop/*\nsudo tar -xzf /tmp/antigravity-hub.tar.gz -C /opt/antigravity-desktop --strip-components=1\nrm /tmp/antigravity-hub.tar.gz\nsudo ln -sf /opt/antigravity-desktop/antigravity /usr/local/bin/antigravity\necho "Update complete! Please restart any running Antigravity instances."\nread -p "Press Enter to exit..."\n' > /usr/local/bin/update-in-place && \
+    printf '#!/bin/bash\nset -e\nsource /usr/local/lib/antigravity-version.sh\necho "Checking architecture..."\nARCH=$(dpkg --print-architecture)\nif [ "$ARCH" = "amd64" ]; then\n    ARCH_SUB="linux-x64"\nelse\n    ARCH_SUB="linux-arm"\nfi\necho "Fetching latest version from Homebrew Cask..."\nif ! VERSION=$(python3 -c '"'"'\nimport re, sys, urllib.request\ntry:\n    url = "https://raw.githubusercontent.com/Homebrew/homebrew-cask/main/Casks/a/antigravity.rb"\n    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})\n    with urllib.request.urlopen(req) as r:\n        content = r.read().decode("utf-8")\n        m = re.search(r"version\\s+\\"([^\\"]+)\\"", content)\n        if m:\n            parts = m.group(1).split(",")\n            if len(parts) == 2:\n                print(f"{parts[0]}|{parts[1]}")\nexcept Exception as e:\n    print(f"Error: {e}", file=sys.stderr)\n'"'"'); then\n    echo "Error: Version discovery failed; falling back to manual entry." >&2\n    VERSION=""\nfi\nif [[ "$VERSION" == *"|"* ]]; then\n    HUB_VER="${VERSION%%|*}"\n    HUB_BUILD="${VERSION#*|}"\nelse\n    HUB_VER=""\n    HUB_BUILD=""\nfi\nif ! validate_antigravity_hub_values "$HUB_VER" "$HUB_BUILD"; then\n    echo "Error: Failed to fetch valid version info. Please enter versions manually:" >&2\n    if ! read_manual_antigravity_hub_values; then\n        echo "Error: Valid version and build ID are required." >&2\n        exit 1\n    fi\nfi\necho "Updating Antigravity to $HUB_VER (Build $HUB_BUILD)..."\ncurl -fsSL -o /tmp/antigravity-hub.tar.gz "https://storage.googleapis.com/antigravity-public/antigravity-hub/${HUB_VER}-${HUB_BUILD}/${ARCH_SUB}/Antigravity.tar.gz"\nsudo rm -rf /opt/antigravity-desktop/*\nsudo tar -xzf /tmp/antigravity-hub.tar.gz -C /opt/antigravity-desktop --strip-components=1\nrm /tmp/antigravity-hub.tar.gz\nsudo ln -sf /opt/antigravity-desktop/antigravity /usr/local/bin/antigravity\necho "Update complete! Please restart any running Antigravity instances."\nread -p "Press Enter to exit..."\n' > /usr/local/bin/update-in-place && \
     chmod +x /usr/local/bin/update-in-place && \
     printf '[Desktop Entry]\nName=Update Antigravity\nComment=Update Antigravity in-place\nExec=xfce4-terminal -e /usr/local/bin/update-in-place\nIcon=system-software-update\nType=Application\nTerminal=false\nCategories=System;Utility;\n' > /usr/share/applications/update-antigravity.desktop && \
     # Clean up APT
@@ -193,6 +193,8 @@ RUN (id -u ubuntu >/dev/null 2>&1 && userdel -f ubuntu || true) && \
     (getent group ubuntu >/dev/null 2>&1 && groupdel ubuntu || true) && \
     groupadd -g 1000 dev && \
     useradd -u 1000 -g dev -m -s /bin/bash dev && \
+    mkdir -p /opt/antigravity-extensions && \
+    chown dev:dev /opt/antigravity-extensions && \
     echo "dev ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
     usermod -aG docker dev && \
     ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html && \
@@ -212,7 +214,8 @@ USER dev
 WORKDIR /home/dev
 RUN \
     # Install VS Code extensions
-    code --no-sandbox --user-data-dir=/home/dev/.vscode-install-tmp \
+    code --no-sandbox --extensions-dir=/opt/antigravity-extensions \
+        --user-data-dir=/home/dev/.vscode-install-tmp \
         --install-extension ms-python.python \
         --install-extension ms-python.vscode-pylance \
         --install-extension ms-vscode.cpptools \
@@ -236,6 +239,10 @@ USER root
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY vnc_startup.sh /usr/local/bin/vnc_startup.sh
 COPY first-run-wizard.sh /usr/local/bin/first-run-wizard.sh
+COPY scripts/antigravity-version.sh /usr/local/lib/antigravity-version.sh
+COPY scripts/update-in-place.sh /usr/local/bin/update-in-place
+COPY scripts/restore-vscode-extensions /usr/local/bin/restore-vscode-extensions
+RUN chmod +x /usr/local/bin/update-in-place /usr/local/bin/restore-vscode-extensions
 COPY fake_version /etc/fake_version
 COPY fake_osrelease /etc/fake_osrelease
 

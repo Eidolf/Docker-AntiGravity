@@ -4,12 +4,15 @@
 
 set -e
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/scripts/antigravity-version.sh"
+
 echo "=== AntiGravity Host Update Utility (VSCode Edition) ==="
 
 # Fetch latest Antigravity Hub version via Homebrew Cask
 echo "Fetching latest Antigravity Hub version from Homebrew Cask..."
-VERSION=$(python3 -c '
-import urllib.request, re
+if ! VERSION=$(python3 -c '
+import re, sys, urllib.request
 try:
     url = "https://raw.githubusercontent.com/Homebrew/homebrew-cask/main/Casks/a/antigravity.rb"
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -21,16 +24,26 @@ try:
             if len(parts) == 2:
                 print(f"{parts[0]}|{parts[1]}")
 except Exception as e:
-    print(f"Error fetching antigravity: {e}")
-')
+    print(f"Error fetching antigravity: {e}", file=sys.stderr)
+'); then
+    echo "Error: Version discovery failed; falling back to manual entry." >&2
+    VERSION=""
+fi
 
-HUB_VER=$(echo "$VERSION" | cut -d'|' -f1)
-HUB_BUILD=$(echo "$VERSION" | cut -d'|' -f2)
+if [[ "$VERSION" == *"|"* ]]; then
+    HUB_VER="${VERSION%%|*}"
+    HUB_BUILD="${VERSION#*|}"
+else
+    HUB_VER=""
+    HUB_BUILD=""
+fi
 
-if [ -z "$HUB_VER" ] || [ -z "$HUB_BUILD" ]; then
-    echo "Error: Failed to fetch version info. Please enter versions manually:"
-    read -p "Antigravity Hub Version (e.g. 2.1.4): " HUB_VER
-    read -p "Antigravity Hub Build ID (e.g. 6481382726303744): " HUB_BUILD
+if ! validate_antigravity_hub_values "$HUB_VER" "$HUB_BUILD"; then
+    echo "Error: Failed to fetch valid version info. Please enter versions manually:" >&2
+    if ! read_manual_antigravity_hub_values; then
+        echo "Error: Valid version and build ID are required." >&2
+        exit 1
+    fi
 fi
 
 echo "Latest Antigravity Hub: $HUB_VER (Build: $HUB_BUILD)"
