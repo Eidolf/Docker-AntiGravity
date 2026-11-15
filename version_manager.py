@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import datetime
-import sys
-import re
 import os
+import re
+import sys
 
 VERSION_FILE = "VERSION"
 
@@ -18,7 +18,7 @@ def write_version(version):
     print(f"Version updated to: {version}")
 
 def get_date_parts():
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     return now.year, now.month, now.strftime("%Y%m%d.%H%M")
 
 def parse_version(version_str):

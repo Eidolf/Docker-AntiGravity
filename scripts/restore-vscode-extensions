@@ -1,0 +1,55 @@
+#!/bin/bash
+set -e
+
+SOURCE_DIR="${1:-/opt/antigravity-extensions}"
+TARGET_DIR="${2:-$HOME/.vscode/extensions}"
+TARGET_REGISTRY="$TARGET_DIR/extensions.json"
+SOURCE_REGISTRY="$SOURCE_DIR/extensions.json"
+
+if [ ! -d "$SOURCE_DIR" ]; then
+    exit 0
+fi
+
+mkdir -p "$TARGET_DIR"
+if ! jq -e 'type == "array"' "$SOURCE_REGISTRY" >/dev/null; then
+    echo "Error: Missing or invalid baked VS Code extension registry at $SOURCE_REGISTRY." >&2
+    exit 1
+fi
+
+if [ ! -f "$TARGET_REGISTRY" ]; then
+    printf '[]\n' > "$TARGET_REGISTRY"
+fi
+if ! jq -e 'type == "array"' "$TARGET_REGISTRY" >/dev/null; then
+    echo "Error: Invalid VS Code extension registry at $TARGET_REGISTRY." >&2
+    exit 1
+fi
+
+cp -a --update=none "$SOURCE_DIR/." "$TARGET_DIR/"
+
+TEMP_REGISTRY=$(mktemp "$TARGET_DIR/extensions.json.XXXXXX")
+if ! jq -s --arg target "$TARGET_DIR" '
+    def extension_id: .identifier.id // .id;
+    .[0] as $existing |
+    .[1] as $baked |
+    $existing + [
+        $baked[]
+        | select(. as $candidate | all(
+            $existing[];
+            extension_id != ($candidate | extension_id)
+        ))
+        | if has("location") then
+            .location.path = ($target + "/" + .relativeLocation)
+          else
+            .path = ($target + "/" + .relativeLocation)
+          end
+    ]
+' "$TARGET_REGISTRY" "$SOURCE_REGISTRY" > "$TEMP_REGISTRY"; then
+    rm -f -- "$TEMP_REGISTRY"
+    echo "Error: Could not merge the baked VS Code extension registry." >&2
+    exit 1
+fi
+if ! mv -- "$TEMP_REGISTRY" "$TARGET_REGISTRY"; then
+    rm -f -- "$TEMP_REGISTRY"
+    echo "Error: Could not update the VS Code extension registry." >&2
+    exit 1
+fi
