@@ -228,9 +228,7 @@ RUN \
         --install-extension usernamehw.errorlens \
         --install-extension streetsidesoftware.code-spell-checker \
         --install-extension PKief.material-icon-theme \
-        --install-extension GitHub.copilot \
-        --install-extension GitHub.vscode-pull-request-github \
-        2>/dev/null || true && \
+        --install-extension GitHub.vscode-pull-request-github && \
     rm -rf /home/dev/.vscode-install-tmp && \
     # Install Claude Code CLI
     curl -fsSL https://claude.ai/install.sh | bash
@@ -242,6 +240,7 @@ COPY first-run-wizard.sh /usr/local/bin/first-run-wizard.sh
 COPY scripts/antigravity-version.sh /usr/local/lib/antigravity-version.sh
 COPY scripts/update-in-place.sh /usr/local/bin/update-in-place
 COPY scripts/restore-vscode-extensions /usr/local/bin/restore-vscode-extensions
+COPY scripts/enable-vscode-workspace-trust.py /usr/local/lib/enable-vscode-workspace-trust.py
 RUN chmod +x /usr/local/bin/update-in-place /usr/local/bin/restore-vscode-extensions
 COPY fake_version /etc/fake_version
 COPY fake_osrelease /etc/fake_osrelease

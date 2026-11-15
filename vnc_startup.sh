@@ -66,21 +66,10 @@ fi
 # Upgrade profiles created by older images, which disabled Workspace Trust.
 VSCODE_TRUST_MIGRATION_FLAG="$HOME/.config/agy-workspace-trust-migrated"
 if [ ! -f "$VSCODE_TRUST_MIGRATION_FLAG" ]; then
-    if ! jq -e 'type == "object"' "$VSCODE_SETTINGS" >/dev/null; then
-        echo "Error: Invalid VS Code settings JSON at $VSCODE_SETTINGS." >&2
+    VSCODE_TRUST_MIGRATION_SCRIPT="${VSCODE_TRUST_MIGRATION_SCRIPT:-/usr/local/lib/enable-vscode-workspace-trust.py}"
+    if ! python3 "$VSCODE_TRUST_MIGRATION_SCRIPT" "$VSCODE_SETTINGS"; then
+        echo "Error: Could not migrate VS Code Workspace Trust in $VSCODE_SETTINGS." >&2
         exit 1
-    fi
-    if jq -e '.["security.workspace.trust.enabled"] == false' "$VSCODE_SETTINGS" >/dev/null; then
-        TMP_VSCODE_SETTINGS=$(mktemp "${VSCODE_SETTINGS}.XXXXXX") || {
-            echo "Error: Could not create a temporary VS Code settings file." >&2
-            exit 1
-        }
-        if ! jq '.["security.workspace.trust.enabled"] = true' "$VSCODE_SETTINGS" > "$TMP_VSCODE_SETTINGS" ||
-            ! mv "$TMP_VSCODE_SETTINGS" "$VSCODE_SETTINGS"; then
-            rm -f "$TMP_VSCODE_SETTINGS"
-            echo "Error: Could not enable VS Code Workspace Trust." >&2
-            exit 1
-        fi
     fi
     if ! touch "$VSCODE_TRUST_MIGRATION_FLAG"; then
         echo "Error: Could not record VS Code Workspace Trust migration." >&2

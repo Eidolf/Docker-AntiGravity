@@ -18,7 +18,7 @@ Features XFCE4, **Visual Studio Code**, Google Chrome, and a full Docker-in-Dock
 - **Desktop**: XFCE4 (lightweight and fast)
 - **Remote Access**: NoVNC (browser-based) and TigerVNC direct
 - **Tools**:
-    - **Visual Studio Code**: Full IDE with 15+ pre-installed extensions (Python, Docker, GitLens, GitHub Copilot, and more)
+    - **Visual Studio Code**: Full IDE with 15+ pre-installed extensions (Python, Docker, GitLens, built-in GitHub Copilot Chat, and more)
     - **Google Antigravity v2.0**: Visual command center for multi-agent orchestration
     - **Browser**: Google Chrome Stable
     - **Text Editor**: Mousepad (lightweight plain-text editor outside of VS Code)
@@ -186,7 +186,7 @@ extensions already installed there.
 | `usernamehw.errorlens` | Inline error display |
 | `streetsidesoftware.code-spell-checker` | Spell checker |
 | `PKief.material-icon-theme` | File icons |
-| `GitHub.copilot` + `GitHub.vscode-pull-request-github` | GitHub AI & PR integration |
+| VS Code built-in Copilot Chat + `GitHub.vscode-pull-request-github` | GitHub AI & PR integration |
 
 Additional extensions can be selected via the first-run wizard or installed manually in VS Code.
 
