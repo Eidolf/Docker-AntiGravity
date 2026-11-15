@@ -6,6 +6,12 @@
 A lightweight, web-accessible Ubuntu desktop environment in a Docker container.
 It features XFCE4, Google Chrome, and standard Git tools, accessible via your browser using NoVNC.
 
+## Project ecosystem
+
+- [Agent instructions](AGENTS.md)
+- [Project profile](https://github.com/Eidolf/ER-KnowledgeBase/blob/main/Projects/Docker-AntiGravity/README.md) (private)
+- [Knowledge-Platform](https://github.com/Eidolf/Knowledge-Platform)
+
 ## Features
 - **OS**: Ubuntu 24.04 LTS (Noble Numbat).
 - **Desktop**: XFCE4 (Lightweight and fast).
