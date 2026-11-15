@@ -164,10 +164,10 @@ cat > "$BAKED_EXTENSIONS/extensions.json" <<EOF
   {"identifier":{"id":"ms-python.vscode-pylance"},"version":"1.0","relativeLocation":"ms-python.vscode-pylance-1.0","location":{"path":"$BAKED_EXTENSIONS/ms-python.vscode-pylance-1.0","scheme":"file"}}
 ]
 EOF
-cat > "$USER_EXTENSIONS/extensions.json" <<'EOF'
+cat > "$USER_EXTENSIONS/extensions.json" <<EOF
 [
   {"identifier":{"id":"golang.go"},"version":"1.0","relativeLocation":"golang.go-1.0","location":{"path":"/home/dev/.vscode/extensions/golang.go-1.0","scheme":"file"}},
-  {"identifier":{"id":"ms-python.python"},"version":"1.0","relativeLocation":"ms-python.python-1.0","location":{"path":"/home/dev/.vscode/extensions/ms-python.python-1.0","scheme":"file"}}
+  {"identifier":{"id":"ms-python.python"},"version":"1.0","relativeLocation":"ms-python.python-1.0","location":{"path":"$USER_EXTENSIONS/ms-python.python-1.0","scheme":"file"}}
 ]
 EOF
 bash "$ROOT_DIR/scripts/restore-vscode-extensions" "$BAKED_EXTENSIONS" "$USER_EXTENSIONS"
