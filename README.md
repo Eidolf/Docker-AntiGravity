@@ -17,7 +17,7 @@ Features XFCE4, **Visual Studio Code**, Google Chrome, and a full Docker-in-Dock
     - **Browser**: Google Chrome Stable
     - **Text Editor**: Mousepad (lightweight plain-text editor outside of VS Code)
     - **Screenshots**: `xfce4-screenshooter` (GUI) + `scrot` (CLI)
-    - **Git**: `git` CLI + `lazygit` terminal UI
+    - **Git**: `git` CLI + `lazygit` terminal UI + GitHub CLI (`gh`)
     - **Docker**: Isolated Docker Daemon (Docker-in-Docker)
     - **Node.js**: v24.x
     - **Python**: 3.14
@@ -53,6 +53,34 @@ They are the recommended approach for **automated or headless deployments** wher
 | `INSTALL_WINDOWS_TOOLS` | `true` → installs `mingw-w64` for Windows cross-compilation |
 
 > **Tip**: For interactive use, leave these unset and configure everything via the first-run wizard instead.
+
+## GitHub CLI and Git Authentication
+
+The image includes the official GitHub CLI (`gh`). Authenticate as the `dev` user
+from a terminal in the desktop:
+
+The CLI is installed when the image is built. Rebuild the image and recreate
+the container to make it available in an existing deployment; no credentials
+are baked into the image.
+
+```bash
+gh auth login --hostname github.com --git-protocol https --web
+```
+
+Follow the URL and one-time code shown by the CLI in a browser, then authorize
+the GitHub CLI. Once login succeeds, configure Git to use `gh` for HTTPS
+credentials and verify the session:
+
+```bash
+gh auth setup-git
+gh auth status
+git ls-remote https://github.com/OWNER/REPOSITORY.git
+```
+
+The GitHub account must already have access to any private repository. The
+container persists `/home/dev`; treat that volume as sensitive because GitHub
+CLI credentials may be stored there. Never put tokens in the Dockerfile,
+Compose file, environment variables, or repository.
 
 ## Login Credentials
 
