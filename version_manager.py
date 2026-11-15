@@ -1,93 +1,142 @@
 #!/usr/bin/env python3
+"""Calculate Docker-AntiGravity release versions from stable Git tags."""
+
+from __future__ import annotations
+
+import argparse
 import datetime
 import os
 import re
+import subprocess
 import sys
+from pathlib import Path
 
-VERSION_FILE = "VERSION"
+VERSION_FILE = Path(__file__).resolve().with_name("VERSION")
+STABLE_TAG_PATTERN = re.compile(r"^v?(\d{4})\.(\d{1,2})\.(\d+)$")
 
-def read_current_version():
-    if not os.path.exists(VERSION_FILE):
-        return "0.0.0"
-    with open(VERSION_FILE, "r") as f:
-        return f.read().strip()
 
-def write_version(version):
-    with open(VERSION_FILE, "w") as f:
-        f.write(version)
-    print(f"Version updated to: {version}")
-
-def get_date_parts():
-    now = datetime.datetime.now(datetime.UTC)
-    return now.year, now.month, now.strftime("%Y%m%d.%H%M")
-
-def parse_version(version_str):
-    # Regex to capture YYYY.MM.PATCH and optional suffix
-    # e.g., 2026.01.5, 2026.01.5-beta, 2026.01.5-nightly.20260121.1200
-    match = re.match(r"^(\d{4})\.(\d{1,2})\.(\d+)(?:-(.+))?$", version_str)
-    if not match:
+def parse_stable_tag(tag: str) -> tuple[int, int, int] | None:
+    """Parse a stable CalVer tag, accepting unprefixed historical tags."""
+    match = STABLE_TAG_PATTERN.fullmatch(tag)
+    if match is None:
         return None
-    return int(match.group(1)), int(match.group(2)), int(match.group(3)), match.group(4)
 
-def bump_version(release_type):
-    current_version = read_current_version()
-    parsed = parse_version(current_version)
-    
-    current_year, current_month, current_patch = 0, 0, 0
-    
-    if parsed:
-        current_year, current_month, current_patch, _ = parsed
-    
-    now_year, now_month, timestamp = get_date_parts()
-    
-    # Calculate new base version
-    new_year = now_year
-    new_month = now_month
-    new_patch = current_patch
-    
-    # Reset patch if month or year changed
-    if new_year != current_year or new_month != current_month:
-        new_patch = 1
-    else:
-        # Only increment patch if we are not just switching suffix on the same base
-        # But per requirements: "Reset patch to 1 when month or year changes."
-        # Use simpler logic: if it's a new release cycle for the same month, we might want to increment.
-        # However, usually for "next" version we increment. 
-        # For this script, let's assume if we run it, we want a NEW version.
-        if release_type != 'current':
-             new_patch += 1
+    year, month, patch = (int(part) for part in match.groups())
+    if not 1 <= month <= 12 or patch < 1:
+        return None
+    return year, month, patch
 
-    base_version = f"{new_year}.{new_month}.{new_patch}"
-    
+
+def stable_patch_for_month(tags: list[str], year: int, month: int) -> int:
+    """Return the next patch based only on stable tags in the given month."""
+    stable_versions = [
+        version
+        for tag in tags
+        if (version := parse_stable_tag(tag)) is not None
+    ]
+    latest_stable = max(stable_versions, default=None)
+    if latest_stable is not None and latest_stable[:2] > (year, month):
+        raise ValueError(
+            "Latest stable tag "
+            f"{latest_stable[0]}.{latest_stable[1]}.{latest_stable[2]} "
+            "is from a future UTC month"
+        )
+
+    patches = [
+        patch
+        for tag_year, tag_month, patch in stable_versions
+        if (tag_year, tag_month) == (year, month)
+    ]
+    return max(patches, default=0) + 1
+
+
+def get_stable_tags() -> list[str]:
+    """Read all local Git tags; callers must fetch full history first."""
+    result = subprocess.run(
+        ["git", "tag", "--list"],
+        check=True,
+        capture_output=True,
+        text=True,
+        cwd=Path(__file__).resolve().parent,
+    )
+    return result.stdout.splitlines()
+
+
+def calculate_version(
+    release_type: str,
+    stable_tags: list[str],
+    now: datetime.datetime,
+    run_id: str | None = None,
+    run_attempt: str | None = None,
+) -> str:
+    """Calculate a Stable candidate or unique Nightly from stable tag history."""
+    if release_type not in {"stable", "nightly"}:
+        raise ValueError(f"Unknown release type: {release_type}")
+    if now.tzinfo is None:
+        raise ValueError("The release timestamp must be timezone-aware")
+
+    utc_now = now.astimezone(datetime.UTC)
+    patch = stable_patch_for_month(stable_tags, utc_now.year, utc_now.month)
+    base = f"{utc_now.year}.{utc_now.month}.{patch}"
+
     if release_type == "stable":
-        new_version = base_version
-    elif release_type == "beta":
-        new_version = f"{base_version}-beta"
-    elif release_type == "nightly":
-        new_version = f"{base_version}-nightly.{timestamp}"
-    elif release_type == "dev":
-        new_version = f"{base_version}-dev"
-    elif release_type == "current":
-        # Just return the current version re-formatted or verified? 
-        # Actually usually used to just output current.
-        print(current_version)
-        return
-    else:
-        print(f"Unknown release type: {release_type}")
-        sys.exit(1)
-        
-    write_version(new_version)
-    # Output for GitHub Actions
-    if "GITHUB_OUTPUT" in os.environ:
-        with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-            f.write(f"version={new_version}\n")
-    else:
-        print(f"::set-output name=version::{new_version}")
+        return base
+
+    if run_id is None:
+        run_id = f"local{utc_now.strftime('%Y%m%d%H%M%S%f')}"
+    if not re.fullmatch(r"[A-Za-z0-9-]+", run_id):
+        raise ValueError("Run ID must contain only letters, numbers, and hyphens")
+    attempt = run_attempt or "1"
+    if not re.fullmatch(r"\d+", attempt):
+        raise ValueError("Run attempt must be a positive integer")
+    timestamp = utc_now.strftime("%Y%m%d.%H%M")
+    return f"{base}-nightly.{timestamp}.{run_id}.{attempt}"
+
+
+def write_version(version: str) -> None:
+    VERSION_FILE.write_text(f"{version}\n", encoding="utf-8")
+
+
+def generate_version(
+    release_type: str,
+    stable_tags: list[str],
+    now: datetime.datetime,
+    run_id: str | None = None,
+    run_attempt: str | None = None,
+) -> str:
+    """Generate a release version, recording only Stable in VERSION."""
+    version = calculate_version(
+        release_type, stable_tags, now, run_id, run_attempt
+    )
+    if release_type == "stable":
+        write_version(version)
+    return version
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("release_type", choices=("nightly", "stable"))
+    args = parser.parse_args()
+
+    try:
+        version = generate_version(
+            args.release_type,
+            get_stable_tags(),
+            datetime.datetime.now(datetime.UTC),
+            os.environ.get("GITHUB_RUN_ID"),
+            os.environ.get("GITHUB_RUN_ATTEMPT"),
+        )
+    except (OSError, subprocess.CalledProcessError, ValueError) as error:
+        print(f"Error: {error}", file=sys.stderr)
+        return 1
+
+    output_file = os.environ.get("GITHUB_OUTPUT")
+    if output_file:
+        with open(output_file, "a", encoding="utf-8") as output:
+            output.write(f"version={version}\n")
+    print(version)
+    return 0
+
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: version_manager.py <release_type>")
-        print("Types: stable, beta, nightly, dev")
-        sys.exit(1)
-    
-    bump_version(sys.argv[1])
+    raise SystemExit(main())

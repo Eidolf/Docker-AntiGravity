@@ -10,19 +10,24 @@ on:
         type: choice
         options:
           - nightly
-          - beta
           - stable
 
 permissions:
   contents: write
   packages: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   prepare:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
       repo_lower: ${{ steps.repo.outputs.lower }}
+      sha: ${{ steps.commit.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,31 +40,29 @@ jobs:
 
       - name: Calculate Version
         id: version
-        run: python3 version_manager.py ${{ inputs.release_type }}
+        env:
+          RELEASE_TYPE: ${{ inputs.release_type }}
+        run: python3 version_manager.py "$RELEASE_TYPE"
 
       - name: Lowercase Repository Name
         id: repo
         run: echo "lower=${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
 
-      - name: Commit & Push Version Bump
+      - name: Commit Stable Version Metadata
+        id: commit
+        env:
+          RELEASE_TYPE: ${{ inputs.release_type }}
         run: |
-          git config --global user.name "Antigravity Bot"
-          git config --global user.email "bot@antigravity.dev"
-          git add VERSION
-          git commit -m "chore(release): bump version to ${{ steps.version.outputs.version }}"
-          git push
-
-      - name: Create Tag
-        run: |
-          git tag ${{ steps.version.outputs.version }}
-          git push origin ${{ steps.version.outputs.version }}
-
-      - name: Generate Release Notes
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.version.outputs.version }}
-          generate_release_notes: true
-          prerelease: ${{ inputs.release_type != 'stable' }}
+          if [[ "$RELEASE_TYPE" == "stable" ]]; then
+            git config user.name "Antigravity Bot"
+            git config user.email "bot@antigravity.dev"
+            git add VERSION
+            if ! git diff --cached --quiet; then
+              git commit -m "chore(release): record version ${{ steps.version.outputs.version }}"
+            fi
+            git push origin HEAD:main
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   build:
     needs: prepare
@@ -75,6 +78,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -120,29 +125,48 @@ jobs:
           docker buildx imagetools create -t ${REPO}:${VERSION} \
             ${REPO}:${VERSION}-amd64 \
             ${REPO}:${VERSION}-arm64
-            
-          if [ "${{ github.event.inputs.release_type }}" == "stable" ]; then
-            docker buildx imagetools create -t ${REPO}:latest \
-              ${REPO}:${VERSION}-amd64 \
-              ${REPO}:${VERSION}-arm64
-          fi
 
-  post-release:
+  publish:
     needs: [prepare, merge]
-    if: inputs.release_type != 'nightly'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
-      - name: Bump to Dev Version
+          fetch-depth: 0
+
+      - name: Create immutable release tag
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          RELEASE_SHA: ${{ needs.prepare.outputs.sha }}
         run: |
-          git config --global user.name "Antigravity Bot"
-          git config --global user.email "bot@antigravity.dev"
-          git pull --rebase origin main
-          python3 version_manager.py dev
-          git add VERSION
-          git commit -m "chore: bump to dev version [skip ci]"
-          git push
+          set -euo pipefail
+          TAG="v${VERSION}"
+          bash scripts/create-release-tag.sh "$TAG" "$RELEASE_SHA"
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.prepare.outputs.version }}
+          generate_release_notes: true
+          prerelease: ${{ inputs.release_type == 'nightly' }}
+          make_latest: ${{ inputs.release_type == 'stable' }}
+
+      - name: Set up Docker Buildx
+        if: inputs.release_type == 'stable'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        if: inputs.release_type == 'stable'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set Stable latest container alias
+        if: inputs.release_type == 'stable'
+        env:
+          REPO: ghcr.io/${{ needs.prepare.outputs.repo_lower }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          docker buildx imagetools create -t "${REPO}:latest" "${REPO}:${VERSION}"

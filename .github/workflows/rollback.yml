@@ -1,10 +1,10 @@
-name: Rollback
+name: Rollback Stable Container Alias
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to rollback (e.g., 2026.01.1)'
+        description: 'Stable version to restore as latest (with or without v prefix)'
         required: true
         type: string
       confirmation:
@@ -13,7 +13,7 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
   packages: write
 
 jobs:
@@ -22,13 +22,59 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Delete Release
-        uses: dev-drprasad/delete-tag-and-release@v1.0
         with:
-          tag_name: ${{ inputs.version }}
-          delete_release: true
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
-      - name: Log Rollback
-        run: echo "Rolled back version ${{ inputs.version }}"
+      - name: Validate stable release
+        id: target
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$VERSION_INPUT" =~ ^v?([0-9]{4}\.(0?[1-9]|1[0-2])\.[1-9][0-9]*)$ ]]; then
+            echo "Input must be a stable CalVer version such as 2026.11.3." >&2
+            exit 1
+          fi
+          VERSION="${BASH_REMATCH[1]}"
+          if git show-ref --verify --quiet "refs/tags/v${VERSION}"; then
+            TAG="v${VERSION}"
+          elif git show-ref --verify --quiet "refs/tags/${VERSION}"; then
+            TAG="${VERSION}"
+          else
+            echo "No stable Git tag exists for ${VERSION}." >&2
+            exit 1
+          fi
+          IS_PRERELEASE="$(gh release view "$TAG" --json isPrerelease --jq '.isPrerelease')"
+          if [[ "$IS_PRERELEASE" != "false" ]]; then
+            echo "The selected release is not a stable GitHub release." >&2
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify stable image exists
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          VERSION: ${{ steps.target.outputs.version }}
+        run: docker buildx imagetools inspect "ghcr.io/${GITHUB_REPOSITORY,,}:${VERSION}"
+
+      - name: Restore Stable latest alias without deleting history
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          VERSION: ${{ steps.target.outputs.version }}
+        run: docker buildx imagetools create --tag "ghcr.io/${GITHUB_REPOSITORY,,}:latest" "ghcr.io/${GITHUB_REPOSITORY,,}:${VERSION}"
+
+      - name: Log rollback
+        env:
+          VERSION: ${{ steps.target.outputs.version }}
+        run: echo "Restored latest to stable version ${VERSION}; Git tags, releases, and version history were preserved."

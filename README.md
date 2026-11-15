@@ -225,7 +225,8 @@ server {
 
 ### CI/CD Pipelines
 
-- **Release** (`release.yml`): Manually started from the GitHub Actions **Release Manager** workflow; select `release_type` (`nightly`, `beta`, or `stable`) to build and push the multi-arch image to `ghcr.io/eidolf/docker-antigravity`.
+- **Release** (`release.yml`): Manually started from the GitHub Actions **Release Manager** workflow on `main`; select `nightly` or `stable` to build and push the multi-arch image to `ghcr.io/eidolf/docker-antigravity`. CalVer uses `YYYY.M.PATCH`; Stable Git tags are the version source of truth. Historical unprefixed stable tags are recognized, and all new Git tags use `v` (for example, `v2026.11.3`). `VERSION` mirrors Stable only; Nightlies use the next Stable candidate with a unique UTC `YYYYMMDD.HHMM.<run-id>.<attempt>` suffix and do not write or commit `VERSION`. Container tags omit `v`; only Stable updates the container `latest` tag and GitHub's latest-release designation.
+- **Rollback** (`rollback.yml`): Restores the mutable `latest` container alias to an existing Stable release. It does not delete or rewrite Git tags, GitHub releases, container version tags, or release history.
 - **CI Orchestrator** (`ci-orchestrator.yml`): Runs on PRs and `main` pushes — Python linting (Ruff) and Dockerfile dry-run build.
 - **PR Orchestrator** (`pr-orchestrator.yml`): Auto-labels PRs by changed files and size.
 
