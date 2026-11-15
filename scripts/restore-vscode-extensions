@@ -35,7 +35,7 @@ if ! jq -s --arg target "$TARGET_DIR" '
         $baked[]
         | select(. as $candidate | all(
             $existing[];
-            extension_id != ($candidate | extension_id) or .version != $candidate.version
+            extension_id != ($candidate | extension_id)
         ))
         | if has("location") then
             .location.path = ($target + "/" + .relativeLocation)

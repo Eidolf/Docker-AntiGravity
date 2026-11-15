@@ -6,7 +6,6 @@ import sys
 import tempfile
 from pathlib import Path
 
-
 SETTING = "security.workspace.trust.enabled"
 
 
@@ -114,13 +113,14 @@ def _find_root_false_values(text, key):
 
 
 def enable_workspace_trust(path):
-    original = path.read_text(encoding="utf-8")
+    settings_path = path.resolve() if path.is_symlink() else path
+    original = settings_path.read_text(encoding="utf-8")
     bom = "\ufeff" if original.startswith("\ufeff") else ""
     content = original[len(bom) :]
     sanitized = _remove_trailing_commas(_blank_comments(content))
     settings = json.loads(sanitized)
     if not isinstance(settings, dict):
-        raise ValueError("VS Code settings must contain a JSON object")
+        raise TypeError("VS Code settings must contain a JSON object")
     if settings.get(SETTING) is not False:
         return
 
@@ -132,13 +132,15 @@ def enable_workspace_trust(path):
         updated = updated[:start] + "true" + updated[end:]
     updated = bom + updated
 
-    original_mode = stat.S_IMODE(path.stat().st_mode)
-    descriptor, temporary_path = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    original_mode = stat.S_IMODE(settings_path.stat().st_mode)
+    descriptor, temporary_path = tempfile.mkstemp(
+        prefix=f".{settings_path.name}.", dir=settings_path.parent
+    )
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as temporary_file:
             temporary_file.write(updated)
         os.chmod(temporary_path, original_mode)
-        os.replace(temporary_path, path)
+        os.replace(temporary_path, settings_path)
     finally:
         if os.path.exists(temporary_path):
             os.unlink(temporary_path)

@@ -89,6 +89,7 @@ ARCHIVE="$TEMP_DIR/antigravity-hub.tar.gz"
 curl -fsSL -o "$ARCHIVE" "https://storage.googleapis.com/antigravity-public/antigravity-hub/${HUB_VER}-${HUB_BUILD}/${ARCH_SUB}/Antigravity.tar.gz"
 STAGING_DIR=$(sudo mktemp -d "${INSTALL_DIR}.staging.XXXXXX")
 sudo tar -xzf "$ARCHIVE" -C "$STAGING_DIR" --strip-components=1
+sudo chmod 0755 "$STAGING_DIR"
 if [ ! -x "$STAGING_DIR/antigravity" ]; then
     echo "Error: The downloaded archive did not contain an executable Antigravity binary." >&2
     exit 1

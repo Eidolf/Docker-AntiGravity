@@ -153,25 +153,28 @@ chmod +x "$TEMP_DIR/bin/"*
 
 BAKED_EXTENSIONS="$TEMP_DIR/baked-extensions"
 USER_EXTENSIONS="$TEMP_DIR/user-extensions"
-mkdir -p "$BAKED_EXTENSIONS/ms-python.python-1.0" "$USER_EXTENSIONS/ms-python.python-1.0"
-printf 'baked\n' > "$BAKED_EXTENSIONS/ms-python.python-1.0/extension.txt"
+mkdir -p "$BAKED_EXTENSIONS/ms-python.python-2.0" "$USER_EXTENSIONS/ms-python.python-1.0"
+printf 'baked\n' > "$BAKED_EXTENSIONS/ms-python.python-2.0/extension.txt"
 printf 'user\n' > "$USER_EXTENSIONS/ms-python.python-1.0/extension.txt"
 mkdir -p "$BAKED_EXTENSIONS/ms-python.vscode-pylance-1.0"
 printf 'pylance\n' > "$BAKED_EXTENSIONS/ms-python.vscode-pylance-1.0/extension.txt"
 cat > "$BAKED_EXTENSIONS/extensions.json" <<EOF
 [
-  {"identifier":{"id":"ms-python.python"},"version":"1.0","relativeLocation":"ms-python.python-1.0","location":{"path":"$BAKED_EXTENSIONS/ms-python.python-1.0","scheme":"file"}},
+  {"identifier":{"id":"ms-python.python"},"version":"2.0","relativeLocation":"ms-python.python-2.0","location":{"path":"$BAKED_EXTENSIONS/ms-python.python-2.0","scheme":"file"}},
   {"identifier":{"id":"ms-python.vscode-pylance"},"version":"1.0","relativeLocation":"ms-python.vscode-pylance-1.0","location":{"path":"$BAKED_EXTENSIONS/ms-python.vscode-pylance-1.0","scheme":"file"}}
 ]
 EOF
 cat > "$USER_EXTENSIONS/extensions.json" <<'EOF'
-[{"identifier":{"id":"golang.go"},"version":"1.0","relativeLocation":"golang.go-1.0","location":{"path":"/home/dev/.vscode/extensions/golang.go-1.0","scheme":"file"}}]
+[
+  {"identifier":{"id":"golang.go"},"version":"1.0","relativeLocation":"golang.go-1.0","location":{"path":"/home/dev/.vscode/extensions/golang.go-1.0","scheme":"file"}},
+  {"identifier":{"id":"ms-python.python"},"version":"1.0","relativeLocation":"ms-python.python-1.0","location":{"path":"/home/dev/.vscode/extensions/ms-python.python-1.0","scheme":"file"}}
+]
 EOF
 bash "$ROOT_DIR/scripts/restore-vscode-extensions" "$BAKED_EXTENSIONS" "$USER_EXTENSIONS"
 [[ "$(cat "$USER_EXTENSIONS/ms-python.python-1.0/extension.txt")" == "user" ]]
 [[ "$(cat "$USER_EXTENSIONS/ms-python.vscode-pylance-1.0/extension.txt")" == "pylance" ]]
 jq -e --arg python "$USER_EXTENSIONS/ms-python.python-1.0" \
-    'length == 3 and any(.[]; .identifier.id == "ms-python.python" and .location.path == $python)' \
+    'length == 3 and any(.[]; .identifier.id == "ms-python.python" and .version == "1.0" and .location.path == $python)' \
     "$USER_EXTENSIONS/extensions.json" >/dev/null
 bash "$ROOT_DIR/scripts/restore-vscode-extensions" "$BAKED_EXTENSIONS" "$USER_EXTENSIONS"
 [[ "$(jq 'length' "$USER_EXTENSIONS/extensions.json")" == "3" ]]
@@ -235,6 +238,22 @@ HOME="$TRUST_HOME" PATH="$TEMP_DIR/bin:$PATH" \
     bash "$ROOT_DIR/vnc_startup.sh" >"$TEMP_DIR/vnc-trust-again.log" 2>&1
 grep -q '"security.workspace.trust.enabled": false,' "$TRUST_HOME/.config/Code/User/settings.json"
 
+TRUST_SYMLINK_HOME="$TEMP_DIR/home-trust-symlink"
+SYMLINK_SETTINGS="$TEMP_DIR/dotfiles/settings.json"
+mkdir -p "$TRUST_SYMLINK_HOME/.config/Code/User" "$(dirname "$SYMLINK_SETTINGS")"
+touch "$TRUST_SYMLINK_HOME/.config/agy-setup-done"
+cat > "$SYMLINK_SETTINGS" <<'EOF'
+{
+    "security.workspace.trust.enabled": false,
+}
+EOF
+/bin/ln -s "$SYMLINK_SETTINGS" "$TRUST_SYMLINK_HOME/.config/Code/User/settings.json"
+HOME="$TRUST_SYMLINK_HOME" PATH="$TEMP_DIR/bin:$PATH" \
+    VSCODE_TRUST_MIGRATION_SCRIPT="$ROOT_DIR/scripts/enable-vscode-workspace-trust.py" \
+    bash "$ROOT_DIR/vnc_startup.sh" >"$TEMP_DIR/vnc-trust-symlink.log" 2>&1
+[[ -L "$TRUST_SYMLINK_HOME/.config/Code/User/settings.json" ]]
+grep -q '"security.workspace.trust.enabled": true,' "$SYMLINK_SETTINGS"
+
 if (cd "$ROOT_DIR" && PATH="$TEMP_DIR/bin:$PATH" UPDATE_PYTHON_FAIL=1 bash "$ROOT_DIR/update.sh" </dev/null) \
     >"$TEMP_DIR/updater-fetch-failure.log" 2>&1; then
     echo "Updater did not stop when version discovery and manual input failed." >&2
@@ -275,6 +294,7 @@ fi
 
 run_inplace_update "$TEMP_DIR/update-success.log"
 [[ "$(cat "$UPDATE_INSTALL/antigravity")" == "new installation" ]]
+[[ "$(stat -c '%a' "$UPDATE_INSTALL")" == "755" ]]
 
 run_inplace_update "$TEMP_DIR/update-concurrent-1.log" UPDATE_CURL_DELAY=0.1 &
 update_pid_1=$!

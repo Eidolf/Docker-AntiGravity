@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-import datetime
 import argparse
-import sys
+import datetime
 import os
 import re
+import sys
 
 VERSION_FILE = 'VERSION'
 
 def get_current_date():
-    return datetime.datetime.now(datetime.timezone.utc)
+    return datetime.datetime.now(datetime.UTC)
 
 def read_version():
     if not os.path.exists(VERSION_FILE):
@@ -86,7 +86,7 @@ def bump_dev_version():
     now = get_current_date()
     
     try:
-        year, month, patch, suffix = parse_version(current_version_str)
+        year, month, patch, _suffix = parse_version(current_version_str)
     except ValueError:
         # If invalid (e.g. nightly), rely on date
         return f"{now.year}.{now.month}.1-dev"
