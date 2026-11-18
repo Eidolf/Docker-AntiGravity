@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Software Update Check
+Comment=Check for APT updates without installing them automatically
+Exec=/usr/local/bin/software-updates --startup
+Icon=system-software-update
+Type=Application
+Terminal=false
+OnlyShowIn=XFCE;
