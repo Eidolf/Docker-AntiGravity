@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Software Updates
+Name[de]=Software-Updates
+Comment=Check APT updates and choose which packages to install
+Comment[de]=APT-Updates prüfen und Pakete zur Aktualisierung auswählen
+Exec=/usr/local/bin/software-updates
+Icon=system-software-update
+Type=Application
+Terminal=false
+Categories=System;

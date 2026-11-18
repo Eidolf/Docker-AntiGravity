@@ -1,0 +1,136 @@
+#!/bin/bash
+set -euo pipefail
+
+export LC_ALL=C
+MODE="${1:-}"
+STATE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/agy-updates"
+SCRIPT_PATH="$(readlink -f -- "${BASH_SOURCE[0]}")"
+mkdir -p "$STATE_DIR"
+LOG_FILE="$STATE_DIR/updates.log"
+
+report_error() {
+    printf 'Error: %s\n' "$1" >&2
+    if [[ "$MODE" != "--check" && "$MODE" != "--install" ]]; then
+        zenity --error --title="Software Updates" --width=500 \
+            --text="$1
+
+Details: $LOG_FILE" || printf 'Could not display the update error dialog.\n' >&2
+    fi
+}
+
+case "$MODE" in
+    ""|--startup|--check) ;;
+    --install)
+        shift
+        if (($# == 0)); then
+            report_error "No packages selected."
+            exit 1
+        fi
+        for package in "$@"; do
+            if [[ ! "$package" =~ ^[a-z0-9][a-z0-9+.-]*(:[a-z0-9]+)?$ ]]; then
+                report_error "Invalid package name: $package"
+                exit 1
+            fi
+            if ! dpkg-query -W -f='${db:Status-Status}' "$package" 2>/dev/null |
+                grep -qx installed; then
+                report_error "Package is not installed: $package"
+                exit 1
+            fi
+        done
+        printf 'Save your work and close the applications being updated.\n'
+        printf 'APT will show the changes and ask for confirmation. No packages will be removed.\n'
+        printf 'System package updates may restart services. There is no automatic rollback.\n'
+        if sudo -n apt-get install --only-upgrade --no-remove -- "$@" 2>&1 |
+            tee "$STATE_DIR/install.log"; then
+            printf '\nUpdates completed. Reopen the updated applications.\n'
+            exit 0
+        else
+            status=$?
+            printf '\nUpdate failed (exit %s). See %s/install.log.\n' "$status" "$STATE_DIR" >&2
+            exit "$status"
+        fi
+        ;;
+    *)
+        printf 'Usage: %s [--startup|--check|--install PACKAGE...]\n' "$0" >&2
+        exit 1
+        ;;
+esac
+
+if [[ "$MODE" == "--startup" ]]; then
+    sleep 15
+fi
+
+exec 9>"$STATE_DIR/check.lock"
+if ! flock -n 9; then
+    report_error "Another update check is already running."
+    exit 1
+fi
+
+printf 'Checking APT repositories for updates...\n'
+if ! timeout 120 sudo -n apt-get \
+    -o Acquire::Retries=0 \
+    -o Acquire::http::Timeout=15 \
+    -o Acquire::https::Timeout=15 \
+    -o APT::Update::Error-Mode=any update >"$LOG_FILE" 2>&1; then
+    report_error "Could not refresh the package lists. Check your network and the update log."
+    exit 1
+fi
+
+if ! apt list --upgradable >"$STATE_DIR/packages.txt" 2>>"$LOG_FILE"; then
+    report_error "Could not list available package updates."
+    exit 1
+fi
+
+rows=()
+packages=()
+while read -r entry version _; do
+    [[ "$entry" == */* ]] || continue
+    package="${entry%%/*}"
+    packages+=("$package")
+    rows+=(FALSE "$package" "$version")
+done <"$STATE_DIR/packages.txt"
+
+if [[ "$MODE" == "--check" ]]; then
+    if ((${#packages[@]})); then
+        printf '%s\n' "${packages[@]}"
+    else
+        printf 'No APT updates available.\n'
+    fi
+    exit 0
+fi
+
+if ((${#packages[@]} == 0)); then
+    if [[ "$MODE" != "--startup" ]]; then
+        zenity --info --title="Software Updates" \
+            --text="No APT updates available. Applications installed outside APT are not checked."
+    fi
+    exit 0
+fi
+
+if selected=$(zenity --list --checklist --title="Software Updates" \
+    --width=720 --height=500 \
+    --text="Select the packages to update. Nothing is installed automatically.
+Save your work and close the selected applications first.
+APT will ask for confirmation in a terminal.
+System updates may restart services; there is no automatic rollback.
+Only APT packages are checked, not Antigravity, extensions or other standalone tools." \
+    --column="Install" --column="Package" --column="Available version" \
+    --print-column=2 --separator=$'\n' \
+    --ok-label="Review selected updates" --cancel-label="Later" "${rows[@]}"); then
+    [[ -n "$selected" ]] || exit 0
+else
+    status=$?
+    if [[ "$status" == 1 ]]; then
+        exit 0
+    fi
+    report_error "Could not display the package selection."
+    exit "$status"
+fi
+
+mapfile -t packages <<<"$selected"
+flock -u 9
+if ! xfce4-terminal --disable-server --hold --execute \
+    bash "$SCRIPT_PATH" --install "${packages[@]}"; then
+    report_error "Could not open the update terminal."
+    exit 1
+fi

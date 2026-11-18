@@ -310,4 +310,6 @@ if ! wait "$update_pid_2"; then
 fi
 [[ "$(sort -u "$UPDATE_ARCHIVE_LOG" | wc -l)" == "5" ]]
 
+bash "$ROOT_DIR/tests/test-software-updates.sh"
+
 echo "Review-fix tests passed."

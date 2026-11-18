@@ -72,6 +72,40 @@ They are the recommended approach for **automated or headless deployments** wher
 
 > **Tip**: Use the first-run wizard for interactive, container-local package installs. Use the environment variables or a derived image for packages that must survive container recreation.
 
+## Application Updates
+
+At each XFCE desktop start, **Software Updates** checks the configured APT
+repositories in the background after a short delay. It never installs updates
+automatically or blocks the desktop from starting. If updates are available, a
+package-selection window appears with nothing selected by default. Choose the
+packages you want, save your work, and close the affected applications. A
+terminal then shows APT's proposed changes and asks for confirmation before
+installing; package removal is disabled. Reopen updated applications afterwards.
+This reduces disruption but cannot guarantee that an upstream update is bug-free.
+
+You can also open **Software Updates** from the applications menu at any time,
+or run `software-updates` in the desktop terminal. For a terminal-only check
+without installation, run `software-updates --check`. Network/repository errors
+are reported rather than treating stale package lists as a successful check.
+Check logs are stored in `~/.cache/agy-updates/updates.log`; installation output
+is stored separately in `~/.cache/agy-updates/install.log`.
+
+This checks **APT-managed packages only**, including VS Code and the browser
+when their repositories are configured. It does not update Antigravity's
+standalone archive, VS Code extensions, Claude Code, or other tools installed
+outside APT. Antigravity has its separate **Update Antigravity** launcher.
+
+For Portainer, no extra environment variable is required: deploy an image
+containing this feature and keep the existing volumes. Updates installed inside
+the container survive stopping/starting that same container, but **not container
+recreation**. The home volume preserves settings, not system packages. For
+reproducible versions across redeployments, update/rebuild the image instead.
+There is no automatic rollback of installed packages.
+
+To disable the startup check for your persisted user profile, open XFCE
+**Session and Startup → Application Autostart** and disable **Software Update
+Check**. Manual checks remain available.
+
 ## GitHub CLI and Git Authentication
 
 The image includes the official GitHub CLI (`gh`). Authenticate as the `dev` user

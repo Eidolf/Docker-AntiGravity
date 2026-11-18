@@ -241,7 +241,11 @@ COPY scripts/antigravity-version.sh /usr/local/lib/antigravity-version.sh
 COPY scripts/update-in-place.sh /usr/local/bin/update-in-place
 COPY scripts/restore-vscode-extensions /usr/local/bin/restore-vscode-extensions
 COPY scripts/enable-vscode-workspace-trust.py /usr/local/lib/enable-vscode-workspace-trust.py
-RUN chmod +x /usr/local/bin/update-in-place /usr/local/bin/restore-vscode-extensions
+COPY scripts/software-updates /usr/local/bin/software-updates
+COPY scripts/software-updates.desktop /usr/share/applications/software-updates.desktop
+COPY scripts/software-updates-autostart.desktop /etc/xdg/autostart/software-updates.desktop
+RUN chmod +x /usr/local/bin/update-in-place /usr/local/bin/restore-vscode-extensions \
+        /usr/local/bin/software-updates
 COPY fake_version /etc/fake_version
 COPY fake_osrelease /etc/fake_osrelease
 
