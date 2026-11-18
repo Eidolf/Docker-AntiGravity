@@ -232,6 +232,25 @@ RUN \
     rm -rf /home/dev/.vscode-install-tmp && \
     # Install Claude Code CLI
     curl -fsSL https://claude.ai/install.sh | bash
+
+ARG RTK_VERSION=1.2.0
+RUN set -eu; \
+    case "$(dpkg --print-architecture)" in \
+        amd64) RTK_TARGET="x86_64-unknown-linux-musl"; RTK_SHA256="a28407dc13038bdc9c2a1f5a047b0c636e0c1d495b15523576e2adb992a06a17" ;; \
+        arm64) RTK_TARGET="aarch64-unknown-linux-musl"; RTK_SHA256="9786c61dbbea704e1468ee7060930d3b45b67f79ba2babfb73463e85340628d9" ;; \
+        *) echo "Unsupported architecture for RTK: $(dpkg --print-architecture)" >&2; exit 1 ;; \
+    esac; \
+    RTK_ARCHIVE="rtk-oss-${RTK_TARGET}.tar.gz"; \
+    RTK_TMP_DIR="$(mktemp -d)"; \
+    trap 'rm -rf "$RTK_TMP_DIR"' EXIT; \
+    curl -fsSL "https://github.com/rtk-ai/rtk/releases/download/v${RTK_VERSION}/${RTK_ARCHIVE}" \
+        -o "$RTK_TMP_DIR/$RTK_ARCHIVE"; \
+    printf '%s  %s\n' "$RTK_SHA256" "$RTK_TMP_DIR/$RTK_ARCHIVE" | sha256sum --check --status; \
+    tar -xzf "$RTK_TMP_DIR/$RTK_ARCHIVE" -C "$RTK_TMP_DIR"; \
+    test -x "$RTK_TMP_DIR/rtk" && test -f "$RTK_TMP_DIR/LICENSE"; \
+    sudo install -m 0755 "$RTK_TMP_DIR/rtk" /usr/local/bin/rtk; \
+    sudo install -D -m 0644 "$RTK_TMP_DIR/LICENSE" /usr/share/licenses/rtk-oss/LICENSE; \
+    rtk --version
 USER root
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
