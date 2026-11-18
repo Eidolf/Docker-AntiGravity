@@ -36,6 +36,8 @@ case "$*" in
     *"--list"*)
         if [[ "$*" == *"Optional Software Selection"* ]]; then
             printf '%s' "${WIZARD_PACKAGE_CHOICES:-}"
+        elif [[ "$*" == *"Optional AI Agent Integration"* ]]; then
+            printf '%s' "${WIZARD_AI_AGENT_CHOICES:-}"
         else
             printf '%s' "${WIZARD_EXTENSION_CHOICES:-}"
         fi
@@ -133,6 +135,13 @@ if [[ "${WIZARD_FAIL:-}" == "extension" ]]; then
 fi
 exit 0
 EOF
+cat > "$TEMP_DIR/bin/rtk" <<'EOF'
+#!/bin/bash
+printf '%s\n' "$*" >> "${WIZARD_RTK_LOG:-/dev/null}"
+if [[ "${WIZARD_FAIL:-}" == "rtk" ]]; then
+    exit 1
+fi
+EOF
 cat > "$TEMP_DIR/bin/dbus-launch" <<'EOF'
 #!/bin/sh
 exit 0
@@ -183,11 +192,13 @@ run_wizard_failure() {
     local failure="$1"
     local packages="${2:-}"
     local extensions="${3:-}"
+    local ai_agent_choices="${4:-}"
     local home="$TEMP_DIR/home-$failure"
     mkdir -p "$home/.config"
     if HOME="$home" PATH="$TEMP_DIR/bin:$PATH" \
         WIZARD_FAIL="$failure" WIZARD_PACKAGE_CHOICES="$packages" \
-        WIZARD_EXTENSION_CHOICES="$extensions" WIZARD_SUDO_LOG="$TEMP_DIR/sudo-$failure.log" \
+        WIZARD_EXTENSION_CHOICES="$extensions" WIZARD_AI_AGENT_CHOICES="$ai_agent_choices" \
+        WIZARD_SUDO_LOG="$TEMP_DIR/sudo-$failure.log" WIZARD_RTK_LOG="$TEMP_DIR/rtk-$failure.log" \
         bash "$ROOT_DIR/first-run-wizard.sh" >"$TEMP_DIR/wizard-$failure.log" 2>&1; then
         echo "Wizard unexpectedly succeeded after $failure installation failure." >&2
         exit 1
@@ -199,6 +210,16 @@ run_wizard_failure() {
 run_wizard_failure apt htop
 run_wizard_failure pip pre-commit
 run_wizard_failure extension "" golang.go
+run_wizard_failure rtk "" "" rtk
+
+RTK_HOME="$TEMP_DIR/home-rtk"
+RTK_LOG="$TEMP_DIR/rtk-success.log"
+mkdir -p "$RTK_HOME/.config"
+HOME="$RTK_HOME" PATH="$TEMP_DIR/bin:$PATH" WIZARD_AI_AGENT_CHOICES=rtk \
+    WIZARD_RTK_LOG="$RTK_LOG" \
+    bash "$ROOT_DIR/first-run-wizard.sh" >"$TEMP_DIR/wizard-rtk.log" 2>&1
+grep -q '^init --global --copilot$' "$RTK_LOG"
+[[ -f "$RTK_HOME/.config/agy-setup-done" ]]
 
 SKIP_HOME="$TEMP_DIR/home-skip"
 mkdir -p "$SKIP_HOME/.config"
@@ -210,9 +231,10 @@ HOME="$SKIP_HOME" PATH="$TEMP_DIR/bin:$PATH" WIZARD_CONFIRM_RC=1 \
 ADB_HOME="$TEMP_DIR/home-adb"
 mkdir -p "$ADB_HOME/.config"
 HOME="$ADB_HOME" PATH="$TEMP_DIR/bin:$PATH" WIZARD_PACKAGE_CHOICES="android-sdk-platform-tools-common" \
-    WIZARD_SUDO_LOG="$TEMP_DIR/sudo-adb.log" \
+    WIZARD_SUDO_LOG="$TEMP_DIR/sudo-adb.log" WIZARD_RTK_LOG="$TEMP_DIR/rtk-adb.log" \
     bash "$ROOT_DIR/first-run-wizard.sh" >"$TEMP_DIR/wizard-adb.log" 2>&1
 grep -q 'apt-get install -y android-sdk-platform-tools-common adb fastboot' "$TEMP_DIR/sudo-adb.log"
+[[ ! -s "$TEMP_DIR/rtk-adb.log" ]]
 [[ -f "$ADB_HOME/.config/agy-setup-done" ]]
 
 TRUST_HOME="$TEMP_DIR/home-trust"

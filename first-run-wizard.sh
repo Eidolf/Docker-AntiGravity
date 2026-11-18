@@ -100,7 +100,23 @@ VSCODE_CHOICES=$(zenity --list \
     2>/dev/null) || VSCODE_CHOICES=""
 
 # ─────────────────────────────────────────────
-# Step 4: Confirm and install
+# Step 4: Optional AI agent integration
+# ─────────────────────────────────────────────
+AI_AGENT_CHOICES=$(zenity --list \
+    --title="Optional AI Agent Integration" \
+    --text="<b>Select optional AI agent integrations:</b>\n\nRTK's binary is included in the image, but its Copilot Chat hook stays disabled unless selected. The hook rewrites supported shell commands to reduce command output sent to the model." \
+    --checklist \
+    --column="Enable" \
+    --column="Tool" \
+    --column="Description" \
+    FALSE "rtk" "RTK for GitHub Copilot Chat (automatic command-output reduction)" \
+    --separator="|" \
+    --width=680 \
+    --height=300 \
+    2>/dev/null) || AI_AGENT_CHOICES=""
+
+# ─────────────────────────────────────────────
+# Step 5: Confirm and install
 # ─────────────────────────────────────────────
 SUMMARY="<b>Your selections:</b>\n\n"
 if [ -n "$CHOICES" ]; then
@@ -112,6 +128,11 @@ if [ -n "$VSCODE_CHOICES" ]; then
     SUMMARY+="<b>VS Code extensions:</b>\n$(echo "$VSCODE_CHOICES" | tr '|' '\n' | sed 's/^/  • /')\n"
 else
     SUMMARY+="<b>VS Code extensions:</b> None\n"
+fi
+if [ -n "$AI_AGENT_CHOICES" ]; then
+    SUMMARY+="\n<b>AI agent integrations:</b>\n$(echo "$AI_AGENT_CHOICES" | tr '|' '\n' | sed 's/^/  • /')\n"
+else
+    SUMMARY+="\n<b>AI agent integrations:</b> None\n"
 fi
 
 zenity --question \
@@ -188,6 +209,29 @@ if [ $CONFIRM_RC -eq 0 ]; then
                 fi
             done
         done <<< "$VSCODE_CHOICES"
+    fi
+
+    # ── Configure optional AI agent integrations ──
+    if [ -n "$AI_AGENT_CHOICES" ]; then
+        while IFS='|' read -ra integrations; do
+            for integration in "${integrations[@]}"; do
+                case "$integration" in
+                    rtk)
+                        log_wizard "Enabling RTK for GitHub Copilot Chat..."
+                        if rtk init --global --copilot 2>&1 | tee -a "$WIZARD_LOG"; then
+                            log_wizard "RTK enabled for GitHub Copilot Chat."
+                        else
+                            log_wizard "ERROR: Failed to enable RTK for GitHub Copilot Chat."
+                            INSTALL_FAILED=1
+                        fi
+                        ;;
+                    *)
+                        log_wizard "ERROR: Unknown AI agent integration: $integration"
+                        INSTALL_FAILED=1
+                        ;;
+                esac
+            done
+        done <<< "$AI_AGENT_CHOICES"
     fi
 
     if [ "$INSTALL_FAILED" -eq 0 ]; then

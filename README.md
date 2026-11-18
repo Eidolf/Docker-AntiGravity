@@ -30,7 +30,8 @@ Features XFCE4, **Visual Studio Code**, Google Chrome, and a full Docker-in-Dock
     - **Claude Code CLI**: Pre-installed for AI-assisted development
 - **Persistence**: Home directory and settings persisted via Docker volume
 - **First-Run Wizard**: Interactive GUI wizard on first login to select additional
-  software; completion is recorded after success or an explicit skip
+  software and optional AI agent integrations; completion is recorded after
+  success or an explicit skip
 
 ## First-Run Setup Wizard
 
@@ -39,6 +40,10 @@ It lets you select:
 
 - **Additional system packages** — compilers (gcc, clang, cmake), Android tools, Windows cross-compilation (mingw-w64), Neovim, and more
 - **Additional VS Code extensions** — Go, Rust, Java, Kubernetes, Terraform, Tailwind CSS, Jupyter, and more
+- **Optional AI agent integrations** — enable RTK for GitHub Copilot Chat to
+  automatically rewrite supported shell commands and reduce command output
+  sent to the model. RTK is included in the image; its Copilot hook is disabled
+  unless selected.
 
 After a successful installation or an explicit **Skip All**, the wizard records
 completion in `~/.config/agy-setup-done` and does not reappear. If an installation
@@ -52,7 +57,9 @@ flag remains in the home volume. For packages that must survive image updates,
 use `ADDITIONAL_PACKAGES`, the package-group environment variables, or a derived
 image. Image-baked VS Code extensions are copied into the persistent profile
 without overwriting existing extensions at startup; wizard-installed extensions
-continue to live in the persisted home volume.
+continue to live in the persisted home volume. The RTK binary is included in the
+image using its Apache-2.0 edition; opting in registers its global Copilot hook
+and instructions in the persisted home profile.
 
 > **Headless / automated deployments**: If you are running without an interactive first login (e.g. CI, Portainer with no user session), use the environment variables below to pre-install packages instead.
 
